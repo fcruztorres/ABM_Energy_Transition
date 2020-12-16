@@ -1,31 +1,146 @@
+extensions [csv]
 
+;;;;;;;;;;;;;;;;;;;;;;;; GLOBALS ;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;; BREEDS & BREED VARIABLES ;;;;;;;;;;;;;;;;;;;;;;;;
+breed [municipalities municipality]
+
+municipalities-own [
+  name
+  inhabitants
+  allocated-funds
+  available-personnel
+  green-energy-openness
+  political-variety
+]
+
+;;;;;;;;;;;;;;;;;;;;;;;; LINKS & LINK VARIABLES ;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;  SETUP FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;
+to setup
+  clear-all
+  setup-municipalities
+end
+
+
+to setup-municipalities
+
+  file-close-all ; close all open files
+
+  if not file-exists? "municipalities.csv" [
+    error "No 'municipalities.csv' file found!"
+  ]
+  let fileHeader 1 ; there is 1 header line, line 1 is the first data line (dont forget, we cunt from 0)
+
+  file-open "municipalities.csv"
+
+  ; need to skip the first fileHeader rows
+  let row 0 ; the row that is currently read
+
+  ; We'll read all the data in a single loop
+  while [ not file-at-end? ] [
+    ; here the CSV extension grabs a single line and puts the read data in a list
+    let data (csv:from-row  file-read-line)
+
+    ; check if the row is empty or not
+    if fileHeader <= row  [ ; we are past the header
+
+      ;create turtles
+      create-municipalities 1 [
+        ; Variables
+        set name item 0 data
+        set inhabitants item 1 data
+        set allocated-funds item 2 data
+        set available-personnel item 3 data
+        set green-energy-openness item 4 data
+        set political-variety item 5 data
+        set label name
+        set color blue
+        set shape "circle"
+        setxy random-xcor random-ycor
+        set size (0.3 * log inhabitants 10)
+      ]
+    ];end past header
+
+    set row row + 1 ; increment the row counter for the header skip
+
+  ]; end of while there are rows
+
+  file-close ; make sure to close the file
+
+end
+
+
+;;;;;;;;;;;;;;;;;;;;;;;; GO FUNCTION ;;;;;;;;;;;;;;;;;;;;;;;;
+
+to go
+
+end
 @#$#@#$#@
 GRAPHICS-WINDOW
-210
-10
-647
-448
+265
+24
+1033
+343
 -1
 -1
-13.0
+10.0
 1
 10
 1
 1
 1
 0
+0
+0
 1
-1
-1
--16
-16
--16
-16
+0
+75
+0
+30
 0
 0
 1
 ticks
 30.0
+
+BUTTON
+26
+61
+92
+94
+NIL
+setup
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+111
+61
+174
+94
+NIL
+go
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
