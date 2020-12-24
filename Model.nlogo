@@ -5,6 +5,7 @@ extensions [csv]
 
 ;;;;;;;;;;;;;;;;;;;;;;;; BREEDS & BREED VARIABLES ;;;;;;;;;;;;;;;;;;;;;;;;
 breed [municipalities municipality]
+breed [projects project]
 
 municipalities-own [
   name
@@ -13,6 +14,16 @@ municipalities-own [
   available-personnel
   green-energy-openness
   political-variety
+]
+
+projects-own [
+  active
+  cost
+  ;link - knowledge-needed
+  co2-reduction
+  ;link - positive-externalities
+  ;link - negative-externalities
+  ;link - personnel
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;;; LINKS & LINK VARIABLES ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -71,6 +82,11 @@ to setup-municipalities
   ]; end of while there are rows
 
   file-close ; make sure to close the file
+
+end
+
+
+to setup-projects
 
 end
 
@@ -484,7 +500,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.2-beta2
+NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
