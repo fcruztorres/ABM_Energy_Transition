@@ -103,7 +103,7 @@ end
 to go
 
   ask municipality-connections [
-    set trust trust + random 5 - random 5
+    set trust trust + random 2 - random 20
   ]
 
   display-informal-network
