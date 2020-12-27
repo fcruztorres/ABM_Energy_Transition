@@ -16,14 +16,15 @@ municipalities-own [
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;;; LINKS & LINK VARIABLES ;;;;;;;;;;;;;;;;;;;;;;;;
+undirected-link-breed [municipality-connections municipality-connection]
 
-
-
+municipality-connections-own [trust]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;  SETUP FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;
 to setup
   clear-all
   setup-municipalities
+  setup-informal-network
 end
 
 
@@ -61,7 +62,7 @@ to setup-municipalities
         set label name
         set color blue
         set shape "circle"
-        setxy random-xcor random-ycor
+        setxy random-xcor 15 + random 7 + random -7
         set size (0.3 * log inhabitants 10)
       ]
     ];end past header
@@ -75,10 +76,20 @@ to setup-municipalities
 end
 
 
+to setup-informal-network
+  ask municipalities [
+    create-municipality-connections-with other municipalities
+  ]
+end
+
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;; GO FUNCTION ;;;;;;;;;;;;;;;;;;;;;;;;
 
 to go
-
+  ask municipalities [
+    layout-spring municipalities municipality-connections 0.5 10 3
+  ]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
