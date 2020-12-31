@@ -111,7 +111,7 @@ to setup-projects
     ; check if the row is empty or not
     if fileHeader <= row  [ ; we are past the header
 
-      ;create turtles
+
       create-projects 1 [
         ; Variables
         set project-type item 0 data
