@@ -1,11 +1,13 @@
 extensions [csv]
 
 ;;;;;;;;;;;;;;;;;;;;;;;; GLOBALS ;;;;;;;;;;;;;;;;;;;;;;;;
-
+globals [proposed-projects]
 
 ;;;;;;;;;;;;;;;;;;;;;;;; BREEDS & BREED VARIABLES ;;;;;;;;;;;;;;;;;;;;;;;;
 breed [municipalities municipality]
 breed [projects project]
+
+
 
 municipalities-own [
   name
@@ -19,22 +21,26 @@ municipalities-own [
 projects-own [
   active
   cost
-  ;link - knowledge-needed
   installed-power
   project-type
-  ;link - positive-externalities
-  ;link - negative-externalities
-  ;link - personnel
+  project-size
+
 ]
 
 ;;;;;;;;;;;;;;;;;;;;;;;; LINKS & LINK VARIABLES ;;;;;;;;;;;;;;;;;;;;;;;;
+directed-link-breed [project-connections project-connection]
 
-
-
+project-connections-own [
+  positive-externalities
+  negative-externalities
+  personnel
+  knowledge-needed
+]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;  SETUP FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;
 to setup
   clear-all
+  reset-ticks
   setup-municipalities
   setup-projects
 end
@@ -74,7 +80,15 @@ to setup-municipalities
         set label name
         set color blue
         set shape "circle"
-        setxy random-xcor random-ycor
+
+        ; municipalities are generated in the upper part of the screen
+        let x-cor random-xcor
+        let y-cor random-ycor
+        ;while [x-cor <= world-width / 2] [set x-cor random-xcor]
+        while [y-cor <= world-height / 2] [set y-cor random-ycor]
+        setxy x-cor y-cor
+
+
         set size (0.3 * log inhabitants 10)
       ]
     ];end past header
@@ -107,19 +121,29 @@ to setup-projects
     ; here the CSV extension grabs a single line and puts the read data in a list
     let data (csv:from-row  file-read-line)
 
-    show data
     ; check if the row is empty or not
     if fileHeader <= row  [ ; we are past the header
 
-      ;create turtles
-      create-projects 1 [
-        ; Variables
-        set project-type item 0 data
-        set cost item 1 data
-        set installed-power item 2 data
-        set shape project-type
-        setxy random-xcor random-ycor
-        set size 5
+      ;create possible energy projects
+      repeat 10 [
+        create-projects 1 [
+          ; Variables
+          set project-type item 0 data
+          set cost item 1 data
+          set installed-power item 2 data
+          set project-size item 3 data
+          set shape project-type
+
+          ; projects are generated in the lower part of the screen
+          let x-cor random-xcor
+          let y-cor random-ycor
+          ;while [x-cor >= world-width / 2] [set x-cor random-xcor]
+          while [y-cor >= world-height / 2] [set y-cor random-ycor]
+          setxy x-cor y-cor
+
+          set size 5
+          set hidden? True
+        ]
       ]
     ];end past header
 
@@ -135,17 +159,44 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;; GO FUNCTION ;;;;;;;;;;;;;;;;;;;;;;;;
 
 to go
+  project-proposals-generation
+  tick
+
+end
+
+
+to project-proposals-generation
+  ; on average, every year a new project is proposed to and taken into account by a municipality in the region
+  set proposed-projects n-of (max list 0 random-normal 0.083 0.7) projects ; 0.083 is an approximation of 1/12
+  ask proposed-projects [
+    ; once projects are proposed to and taken into account by a municipality, they are shown and associated with the municipality which received it
+    if hidden? = True [
+      set hidden? False
+      create-project-connections-to n-of 1 municipalities [
+        if [project-size] of proposed-projects = 1 [set knowledge-needed 400] ; in hours*person (only managerial knowledge, perhaps the technical one is out of scope, since it would be so much (entire teams of workers
+        if [project-size] of proposed-projects = 2 [set knowledge-needed 450] ; not belonging to the municipality).
+        if [project-size] of proposed-projects = 3 [set knowledge-needed 500]
+
+        ; the ones below need to be integrated with the municipalities characteristics
+        set personnel 0 ; this should be the number of people a municipality wants to devote to this project, it will increase, decreasing the available personnel of the municipality
+        set positive-externalities 0   ; these two need to be lists of municipalities to be involved
+        set negative-externalities 0   ; but we need to know which municipalities are neighboring with which, maybe we could write that in the municipalities.csv file
+
+
+      ]
+    ]
+  ]
 
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-265
+276
 24
-1033
-343
+1014
+331
 -1
 -1
-10.0
+9.613
 1
 10
 1
