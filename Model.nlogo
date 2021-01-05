@@ -55,12 +55,12 @@ to setup-municipalities
 
   file-close-all ; close all open files
 
-  if not file-exists? "municipalities.csv" [
+  if not file-exists? "data/municipalities.csv" [
     error "No 'municipalities.csv' file found!"
   ]
   let fileHeader 1 ; there is 1 header line, line 1 is the first data line (dont forget, we cunt from 0)
 
-  file-open "municipalities.csv"
+  file-open "data/municipalities.csv"
 
   ; need to skip the first fileHeader rows
   let row 0 ; the row that is currently read
@@ -110,7 +110,7 @@ end
 
 
 to setup-informal-network
-  let trust-ratings csv:from-file "trust_ratings.csv" ; read in trust ratings from table
+  let trust-ratings csv:from-file "data/trust_ratings.csv" ; read in trust ratings from table
 
   ask municipalities [
     create-municipality-connections-with other municipalities ; create connections with all other municipalities
@@ -134,12 +134,12 @@ to setup-projects
 
   file-close-all ; close all open files
 
-  if not file-exists? "projects.csv" [
+  if not file-exists? "data/projects.csv" [
     error "No file 'projects.csv' found!"
   ]
   let fileHeader 1 ; there is 1 header line, line 1 is the first data line (dont forget, we count from 0)
 
-  file-open "projects.csv"
+  file-open "data/projects.csv"
 
   ; need to skip the first fileHeader rows
   let row 0 ; the row that is currently read
@@ -908,7 +908,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.1.2-beta2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
