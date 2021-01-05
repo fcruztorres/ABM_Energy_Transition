@@ -1,0 +1,11 @@
+type,cost,capacity-MW,project-size,energy-source,description
+windpark-small-offshore,"26,240,000.00 €",20,1,w,small offshore wind park
+solarpark-small,"10,885,500.00 €",15,1,s,small solar photovoltaic power station
+windpark-small-onshore,"4,100,000.00 €",5,1,w,small onshore wind park
+windpark-medium-offshore,"164,000,000.00 €",125,2,w,medium offshore wind park
+solarpark-medium,"21,045,300.00 €",29,2,s,medium solar photovoltaic power station
+windpark-medium-onshore,"7,380,000.00 €",9,2,w,medium onshore wind park
+windpark-large-offshore,"157,440,000.00 €",120,3,w,large offshore wind park
+solarpark-large,"34,107,900.00 €",47,3,s,large solar photovoltaic power station
+windpark-large-onshore,"15,580,000.00 €",19,3,w,large onshore wind park
+solar-generating-district, -   € ,0.25,0,s,solar power generating district
