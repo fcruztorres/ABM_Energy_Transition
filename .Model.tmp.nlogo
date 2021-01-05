@@ -1,11 +1,10 @@
 extensions [csv]
 
 ;;;;;;;;;;;;;;;;;;;;;;;; GLOBALS ;;;;;;;;;;;;;;;;;;;;;;;;
-globals [proposed-projects]
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;; BREEDS & BREED VARIABLES ;;;;;;;;;;;;;;;;;;;;;;;;
 breed [municipalities municipality]
-breed [projects project]
 
 municipalities-own [
   name
@@ -16,38 +15,16 @@ municipalities-own [
   political-variety
 ]
 
-projects-own [
-  active
-  cost
-  installed-power
-  project-type
-  project-size
-
-]
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;; LINKS & LINK VARIABLES ;;;;;;;;;;;;;;;;;;;;;;;;
 undirected-link-breed [municipality-connections municipality-connection]
-directed-link-breed [project-connections project-connection]
-
 
 municipality-connections-own [trust] ; trust ranges from -100 to +100, but initally the levels are discretely evaluated from -3 to +3, and then scaled up
-
-project-connections-own [
-  positive-externalities
-  negative-externalities
-  personnel
-  knowledge-needed
-]
 
 ;;;;;;;;;;;;;;;;;;;;;;;;  SETUP FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;
 to setup
   clear-all
-  reset-ticks
   setup-municipalities
   setup-informal-network
-  setup-projects
-
 end
 
 
@@ -85,16 +62,7 @@ to setup-municipalities
         set label name
         set color blue
         set shape "circle"
-
-
-        ; municipalities are generated in the upper part of the screen
-        let x-cor random-xcor
-        let y-cor random-ycor
-        ;while [x-cor <= world-width / 2] [set x-cor random-xcor]
-        while [y-cor <= world-height / 2] [set y-cor random-ycor]
-        setxy x-cor y-cor
-
-
+        setxy random-xcor 15 + random 7 + random -7
         set size (0.3 * log inhabitants 10)
       ]
     ];end past header
@@ -106,7 +74,6 @@ to setup-municipalities
   file-close ; make sure to close the file
 
 end
-
 
 
 to setup-informal-network
@@ -130,94 +97,13 @@ to setup-informal-network
 end
 
 
-to setup-projects
-
-  file-close-all ; close all open files
-
-  if not file-exists? "projects.csv" [
-    error "No file 'projects.csv' found!"
-  ]
-  let fileHeader 1 ; there is 1 header line, line 1 is the first data line (dont forget, we count from 0)
-
-  file-open "projects.csv"
-
-  ; need to skip the first fileHeader rows
-  let row 0 ; the row that is currently read
-
-  ; We'll read all the data in a single loop
-  while [ not file-at-end? ] [
-    ; here the CSV extension grabs a single line and puts the read data in a list
-    let data (csv:from-row  file-read-line)
-
-    ; check if the row is empty or not
-    if fileHeader <= row  [ ; we are past the header
-
-      ;create possible energy projects
-      repeat 10 [
-        create-projects 1 [
-          ; Variables
-          set project-type item 0 data
-          set cost item 1 data
-          set installed-power item 2 data
-          set project-size item 3 data
-          set shape project-type
-
-          ; projects are generated in the lower part of the screen
-          let x-cor random-xcor
-          let y-cor random-ycor
-          ;while [x-cor >= world-width / 2] [set x-cor random-xcor]
-          while [y-cor >= world-height / 2] [set y-cor random-ycor]
-          setxy x-cor y-cor
-
-          set size 5
-          set hidden? True
-        ]
-      ]
-    ];end past header
-
-    set row row + 1 ; increment the row counter for the header skip
-
-  ]; end of while there are rows
-
-  file-close ; make sure to close the file
-
-end
-
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;; GO FUNCTION ;;;;;;;;;;;;;;;;;;;;;;;;
 
 to go
-  project-proposals-generation
-  tick
-
-end
-
-
-to project-proposals-generation
-  ; on average, every year a new project is proposed to and taken into account by a municipality in the region
-  set proposed-projects n-of (max list 0 random-normal 0.083 0.7) projects ; 0.083 is an approximation of 1/12
-  ask proposed-projects [
-    ; once projects are proposed to and taken into account by a municipality, they are shown and associated with the municipality which received it
-    if hidden? = True [
-      set hidden? False
-      create-project-connections-to n-of 1 municipalities [
-        if [project-size] of proposed-projects = 1 [set knowledge-needed 400] ; in hours*person (only managerial knowledge, perhaps the technical one is out of scope, since it would be so much (entire teams of workers
-        if [project-size] of proposed-projects = 2 [set knowledge-needed 450] ; not belonging to the municipality).
-        if [project-size] of proposed-projects = 3 [set knowledge-needed 500]
-
-        ; the ones below need to be integrated with the municipalities characteristics
-        set personnel 0 ; this should be the number of people a municipality wants to devote to this project, it will increase, decreasing the available personnel of the municipality
-        set positive-externalities 0   ; these two need to be lists of municipalities to be involved
-        set negative-externalities 0   ; but we need to know which municipalities are neighboring with which, maybe we could write that in the municipalities.csv file
-
-
-      ]
-    ]
-  ]
 
   ask municipality-connections [
-    set trust trust + random 5 - random 5
+    set trust trust + random 2 - random 20
   ]
 
   display-informal-network
@@ -243,13 +129,13 @@ to display-informal-network
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-276
+265
 24
-1014
-331
+1033
+343
 -1
 -1
-9.613
+10.0
 1
 10
 1
@@ -271,9 +157,9 @@ ticks
 
 BUTTON
 26
-63
+61
 92
-96
+94
 NIL
 setup
 NIL
@@ -373,38 +259,6 @@ Circle -7500403 true true 110 127 80
 Circle -7500403 true true 110 75 80
 Line -7500403 true 150 100 80 30
 Line -7500403 true 150 100 220 30
-
-building institution
-false
-0
-Rectangle -7500403 true true 0 60 300 270
-Rectangle -16777216 true false 130 196 168 256
-Rectangle -16777216 false false 0 255 300 270
-Polygon -7500403 true true 0 60 150 15 300 60
-Polygon -16777216 false false 0 60 150 15 300 60
-Circle -1 true false 135 26 30
-Circle -16777216 false false 135 25 30
-Rectangle -16777216 false false 0 60 300 75
-Rectangle -16777216 false false 218 75 255 90
-Rectangle -16777216 false false 218 240 255 255
-Rectangle -16777216 false false 224 90 249 240
-Rectangle -16777216 false false 45 75 82 90
-Rectangle -16777216 false false 45 240 82 255
-Rectangle -16777216 false false 51 90 76 240
-Rectangle -16777216 false false 90 240 127 255
-Rectangle -16777216 false false 90 75 127 90
-Rectangle -16777216 false false 96 90 121 240
-Rectangle -16777216 false false 179 90 204 240
-Rectangle -16777216 false false 173 75 210 90
-Rectangle -16777216 false false 173 240 210 255
-Rectangle -16777216 false false 269 90 294 240
-Rectangle -16777216 false false 263 75 300 90
-Rectangle -16777216 false false 263 240 300 255
-Rectangle -16777216 false false 0 240 37 255
-Rectangle -16777216 false false 6 90 31 240
-Rectangle -16777216 false false 0 75 37 90
-Line -16777216 false 112 260 184 260
-Line -16777216 false 105 265 196 265
 
 butterfly
 true
@@ -580,139 +434,6 @@ Polygon -1 true true 195 285 210 285 210 240 240 210 195 210
 Polygon -7500403 true false 276 85 285 105 302 99 294 83
 Polygon -7500403 true false 219 85 210 105 193 99 201 83
 
-solar-generating-district
-false
-2
-Rectangle -7500403 true false 104 195 270 270
-Rectangle -16777216 true false 180 225 195 240
-Rectangle -16777216 true false 150 225 165 240
-Rectangle -16777216 true false 120 225 135 240
-Line -7500403 false 90 135 90 195
-Rectangle -7500403 true false 14 105 90 210
-Polygon -13345367 true false 0 90 30 120 105 120 75 90
-Rectangle -13345367 true false 45 225 45 225
-Polygon -13345367 true false 150 180 180 210 225 210 195 180
-Polygon -13345367 true false 90 180 120 210 165 210 135 180
-Polygon -13345367 true false 210 180 240 210 285 210 255 180
-Line -16777216 false 15 105 90 105
-Line -16777216 false 105 195 270 195
-Line -16777216 false 240 180 270 210
-Line -16777216 false 180 180 210 210
-Line -16777216 false 120 180 150 210
-Rectangle -16777216 true false 30 135 45 150
-Rectangle -16777216 true false 60 135 75 150
-Rectangle -16777216 true false 30 165 45 180
-Rectangle -16777216 true false 60 165 75 180
-Rectangle -16777216 true false 210 225 225 240
-Rectangle -16777216 true false 240 225 255 240
-Line -16777216 false 60 90 90 120
-Line -16777216 false 30 90 60 120
-
-solarpark-large
-false
-2
-Rectangle -16777216 true false 225 225 255 270
-Rectangle -16777216 true false 165 225 195 270
-Rectangle -16777216 true false 105 225 135 270
-Rectangle -16777216 true false 45 225 75 270
-Rectangle -16777216 true false 225 180 255 225
-Rectangle -16777216 true false 165 180 195 225
-Rectangle -16777216 true false 105 180 135 225
-Rectangle -16777216 true false 45 180 75 225
-Rectangle -7500403 true false 76 119 285 195
-Rectangle -16777216 true false 90 135 270 165
-Line -7500403 false 90 135 90 195
-Line -7500403 false 120 135 120 195
-Line -7500403 false 150 135 150 180
-Line -7500403 false 180 135 180 195
-Line -7500403 false 210 135 210 165
-Line -7500403 false 240 135 240 165
-Line -7500403 false 90 150 270 150
-Rectangle -7500403 true false 14 153 78 195
-Polygon -13345367 true false 30 180 60 210 105 210 75 180
-Rectangle -13345367 true false 45 225 45 225
-Polygon -13345367 true false 150 180 180 210 225 210 195 180
-Polygon -13345367 true false 90 180 120 210 165 210 135 180
-Polygon -13345367 true false 210 180 240 210 285 210 255 180
-Polygon -13345367 true false 210 225 240 255 285 255 255 225
-Polygon -13345367 true false 150 225 180 255 225 255 195 225
-Polygon -13345367 true false 90 225 120 255 165 255 135 225
-Polygon -13345367 true false 30 225 60 255 105 255 75 225
-Line -16777216 false 45 195 270 195
-Line -16777216 false 45 240 270 240
-Line -16777216 false 240 225 270 255
-Line -16777216 false 240 180 270 210
-Line -16777216 false 180 180 210 210
-Line -16777216 false 60 180 90 210
-Line -16777216 false 120 180 150 210
-Line -16777216 false 120 225 150 255
-Line -16777216 false 60 225 90 255
-Line -16777216 false 180 225 210 255
-
-solarpark-medium
-false
-2
-Rectangle -16777216 true false 165 225 195 270
-Rectangle -16777216 true false 105 225 135 270
-Rectangle -16777216 true false 225 180 255 225
-Rectangle -16777216 true false 165 180 195 225
-Rectangle -16777216 true false 105 180 135 225
-Rectangle -16777216 true false 45 180 75 225
-Rectangle -7500403 true false 120 120 285 195
-Rectangle -16777216 true false 135 135 270 165
-Line -7500403 false 120 135 120 195
-Line -7500403 false 150 135 150 180
-Line -7500403 false 180 135 180 195
-Line -7500403 false 210 135 210 165
-Line -7500403 false 240 135 240 165
-Line -7500403 false 135 150 270 150
-Polygon -13345367 true false 30 180 60 210 105 210 75 180
-Rectangle -13345367 true false 45 225 45 225
-Polygon -13345367 true false 150 180 180 210 225 210 195 180
-Polygon -13345367 true false 90 180 120 210 165 210 135 180
-Polygon -13345367 true false 210 180 240 210 285 210 255 180
-Polygon -13345367 true false 150 225 180 255 225 255 195 225
-Polygon -13345367 true false 90 225 120 255 165 255 135 225
-Line -16777216 false 60 180 90 210
-Line -16777216 false 45 195 90 195
-Line -16777216 false 165 240 210 240
-Line -16777216 false 225 195 270 195
-Line -16777216 false 165 195 210 195
-Line -16777216 false 105 195 150 195
-Line -16777216 false 105 240 150 240
-Line -16777216 false 240 180 270 210
-Line -16777216 false 180 180 210 210
-Line -16777216 false 120 180 150 210
-Line -16777216 false 120 225 150 255
-Line -16777216 false 180 225 210 255
-
-solarpark-small
-false
-2
-Rectangle -16777216 true false 225 180 255 225
-Rectangle -16777216 true false 165 180 195 225
-Rectangle -16777216 true false 105 180 135 225
-Rectangle -16777216 true false 45 180 75 225
-Rectangle -7500403 true false 165 120 285 195
-Rectangle -16777216 true false 180 135 270 165
-Line -7500403 false 180 135 180 195
-Line -7500403 false 210 135 210 165
-Line -7500403 false 240 135 240 165
-Line -7500403 false 180 150 270 150
-Polygon -13345367 true false 30 180 60 210 105 210 75 180
-Rectangle -13345367 true false 45 225 45 225
-Polygon -13345367 true false 150 180 180 210 225 210 195 180
-Polygon -13345367 true false 90 180 120 210 165 210 135 180
-Polygon -13345367 true false 210 180 240 210 285 210 255 180
-Line -16777216 false 60 180 90 210
-Line -16777216 false 45 195 90 195
-Line -16777216 false 225 195 270 195
-Line -16777216 false 165 195 210 195
-Line -16777216 false 105 195 150 195
-Line -16777216 false 240 180 270 210
-Line -16777216 false 180 180 210 210
-Line -16777216 false 120 180 150 210
-
 square
 false
 0
@@ -797,104 +518,6 @@ Line -7500403 true 40 84 269 221
 Line -7500403 true 40 216 269 79
 Line -7500403 true 84 40 221 269
 
-windpark-large-offshore
-false
-2
-Rectangle -13345367 true false 30 270 300 285
-Rectangle -13345367 true false 15 255 285 270
-Rectangle -13345367 true false 105 135 135 270
-Rectangle -7500403 true false 105 75 135 75
-Polygon -7500403 true false 75 195 75 225 120 165 165 105 165 75
-Polygon -7500403 true false 165 195 195 195 135 150 75 105 45 105
-Circle -2674135 true false 105 135 30
-Polygon -13345367 true false 120 135 105 150 120 165 180 150
-Rectangle -13345367 true false 210 105 240 255
-Polygon -7500403 true false 180 165 180 195 225 135 270 75 270 45
-Polygon -7500403 true false 270 165 300 165 240 120 180 75 150 75
-Circle -2674135 true false 210 105 30
-Polygon -13345367 true false 225 105 210 120 225 135 285 120
-Rectangle -13791810 true false 60 270 210 285
-Rectangle -13791810 true false 15 240 165 255
-Rectangle -13345367 true false 0 285 345 300
-Rectangle -13791810 true false 135 285 285 300
-
-windpark-large-onshore
-false
-2
-Rectangle -13345367 true false 105 135 135 270
-Rectangle -7500403 true false 105 75 135 75
-Polygon -7500403 true false 75 195 75 225 120 165 165 105 165 75
-Polygon -7500403 true false 165 195 195 195 135 150 75 105 45 105
-Circle -2674135 true false 105 135 30
-Polygon -13345367 true false 120 135 105 150 120 165 180 150
-Rectangle -13345367 true false 210 105 240 240
-Polygon -7500403 true false 180 165 180 195 225 135 270 75 270 45
-Polygon -7500403 true false 270 165 300 165 240 120 180 75 150 75
-Circle -2674135 true false 210 105 30
-Polygon -13345367 true false 225 105 210 120 225 135 285 120
-
-windpark-medium-offshore
-false
-2
-Rectangle -13345367 true false 30 270 300 285
-Rectangle -13345367 true false 15 255 285 270
-Rectangle -13345367 true false 105 135 135 270
-Rectangle -7500403 true false 105 75 135 75
-Polygon -7500403 true false 75 195 75 225 120 165 165 105 165 75
-Polygon -7500403 true false 165 195 195 195 135 150 75 105 45 105
-Circle -2674135 true false 105 135 30
-Polygon -13345367 true false 120 135 105 150 120 165 180 150
-Rectangle -13345367 true false 210 180 240 255
-Polygon -7500403 true false 195 210 195 240 195 240 255 165 255 135
-Polygon -7500403 true false 255 225 285 225 195 165 195 165 165 165
-Circle -2674135 true false 210 180 30
-Polygon -13345367 true false 225 180 210 195 225 210 285 195
-Rectangle -13791810 true false 60 270 210 285
-Rectangle -13791810 true false 15 240 165 255
-Rectangle -13345367 true false 0 285 345 300
-Rectangle -13791810 true false 135 285 285 300
-
-windpark-medium-onshore
-false
-2
-Rectangle -13345367 true false 105 135 135 270
-Rectangle -7500403 true false 105 75 135 75
-Polygon -7500403 true false 75 195 75 225 120 165 165 105 165 75
-Polygon -7500403 true false 165 195 195 195 135 150 75 105 45 105
-Circle -2674135 true false 105 135 30
-Polygon -13345367 true false 120 135 105 150 120 165 180 150
-Rectangle -13345367 true false 210 165 240 240
-Polygon -7500403 true false 195 180 195 210 195 210 255 135 255 105
-Polygon -7500403 true false 255 195 285 195 195 135 195 135 165 135
-Circle -2674135 true false 210 150 30
-Polygon -13345367 true false 225 150 210 165 225 180 285 165
-
-windpark-small-offshore
-false
-2
-Rectangle -13345367 true false 30 270 300 285
-Rectangle -13345367 true false 15 255 285 270
-Rectangle -13345367 true false 105 135 135 270
-Rectangle -7500403 true false 105 75 135 75
-Polygon -7500403 true false 75 195 75 225 120 165 165 105 165 75
-Polygon -7500403 true false 165 195 195 195 135 150 75 105 45 105
-Circle -2674135 true false 105 135 30
-Polygon -13345367 true false 120 135 105 150 120 165 180 150
-Rectangle -13791810 true false 60 270 210 285
-Rectangle -13791810 true false 15 240 165 255
-Rectangle -13345367 true false 0 285 345 300
-Rectangle -13791810 true false 135 285 285 300
-
-windpark-small-onshore
-false
-2
-Rectangle -13345367 true false 105 135 135 270
-Rectangle -7500403 true false 105 75 135 75
-Polygon -7500403 true false 75 195 75 225 120 165 165 105 165 75
-Polygon -7500403 true false 165 195 195 195 135 150 75 105 45 105
-Circle -2674135 true false 105 135 30
-Polygon -13345367 true false 120 135 105 150 120 165 180 150
-
 wolf
 false
 0
@@ -908,7 +531,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.1.2-beta2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
