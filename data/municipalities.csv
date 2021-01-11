@@ -1,25 +1,25 @@
-name,inhabitants,allocated funds,available personnel,green energy openness,political variety
-Albrandswaard,25271,0,0,0,0
-Barendrecht,48673,0,0,0,0
-Brielle,17181,0,0,0,0
-Capelle aan den IJssel,66818,0,0,0,0
-Delft,101030,0,0,0,0
-The Hague,544766,0,0,0,0
-Hellevoetsluis,38778,0,0,0,0
-Krimpen aan den IJssel,29120,0,0,0,0
-Lansingerland,61601,0,0,0,0
-Leidschendam,32480,0,0,0,0
-Voorburg,75425,0,0,0,0
-Maassluis,32768,0,0,0,0
-Midden-Delfland,19391,0,0,0,0
-Nissewaard,84797,0,0,0,0
-Pijnacker-Nootdorp,54331,0,0,0,0
-Ridderkerk,45743,0,0,0,0
-Rotterdam,623642,0,0,0,0
-Rijswijk,53467,0,0,0,0
-Schiedam,77999,0,0,0,0
-Vlaardingen,72404,0,0,0,0
-Wassenaar,26211,0,0,0,0
-Westland,108603,0,0,0,0
-Westvoorne,14626,0,0,0,0
-Zoetermeer,124025,0,0,0,0
+name,inhabitants,allocated funds,available personnel,green energy openness,political variety,neighbor_1,neighbor_2,neighbor_3,,,,,,,,,,,,,
+Albrandswaard,25271,0,0,0,0,Rotterdam,Barendrecht,Nissewaard,,,,,,,,,,,,,
+Barendrecht,48673,0,0,0,0,Albrandswaard,Rotterdam,Ridderkerk,,,,,,,,,,,,,
+Brielle,17181,0,0,0,0,Westvoorne,Hellevoetsluis,Nissewaard,Rotterdam,,,,,,,,,,,,
+Capelle aan den IJssel,66818,0,0,0,0,Krimpen aan den IJssel,Rotterdam,,,,,,,,,,,,,,
+Delft,101030,0,0,0,0,Rijswijk,The Hague,Pijnacker-Nootdorp,Rotterdam,Midden-Delfland,,,,,,,,,,,
+The Hague,544766,0,0,0,0,Rijswijk,Westland,Wassenaar,Leidschendam,Zoetermeer,Pijnacker-Nootdorp,Delft,,,,,,,,,
+Hellevoetsluis,38778,0,0,0,0,Westvoorne,Nissewaard,Brielle,,,,,,,,,,,,,
+Krimpen aan den IJssel,29120,0,0,0,0,Capelle aan den IJssel,Rotterdam,Ridderkerk,,,,,,,,,,,,,
+Lansingerland,61601,0,0,0,0,Rotterdam,Pijnacker-Nootdorp,Zoetermeer,,,,,,,,,,,,,
+Leidschendam,32480,0,0,0,0,Zoetermeer,The Hague,Rijswijk,Wassenaar,,,,,,,,,,,,
+Voorburg,75425,0,0,0,0,,,,,,,,,,,,,,,,
+Maassluis,32768,0,0,0,0,Rotterdam,Westland,Midden-Delfland,Vlaardingen,,,,,,,,,,,,
+Midden-Delfland,19391,0,0,0,0,Westland,Maassluis,Vlaardingen,Schiedam,Delft,Rijswijk,,,,,,,,,,
+Nissewaard,84797,0,0,0,0,Brielle,Hellevoetsluis,Rotterdam,Albrandswaard,,,,,,,,,,,,
+Pijnacker-Nootdorp,54331,0,0,0,0,The Hague,Delft,Rotterdam,Lansingerland,Zoetermeer,,,,,,,,,,,
+Ridderkerk,45743,0,0,0,0,Barendrecht,Rotterdam,Krimpen aan den IJssel,,,,,,,,,,,,,
+Rotterdam,623642,0,0,0,0,Westvoorne,Brielle,Nissewaard,Albrandswaard,Barendrecht,Ridderkerk,Krimpen aan den IJssel,Capelle aan den IJssel,Lansingerland,Pijnacker-Nootdorp,Delft,Midden-Delfland,Schiedam,Vlaardingen,Maassluis,Westland
+Rijswijk,53467,0,0,0,0,The Hague,Midden-Delfland,Delft,,,,,,,,,,,,,
+Schiedam,77999,0,0,0,0,Vlaardingen,Midden-Delfland,Rotterdam,,,,,,,,,,,,,
+Vlaardingen,72404,0,0,0,0,Schiedam,Midden-Delfland,Maassluis,Rotterdam,,,,,,,,,,,,
+Wassenaar,26211,0,0,0,0,The Hague,Leidschendam,,,,,,,,,,,,,,
+Westland,108603,0,0,0,0,Rotterdam,Maassluis,Midden-Delfland,The Hague,,,,,,,,,,,,
+Westvoorne,14626,0,0,0,0,Hellevoetsluis,Brielle,Rotterdam,,,,,,,,,,,,,
+Zoetermeer,124025,0,0,0,0,Lansingerland,The Hague,Pijnacker-Nootdorp,,Lansingerland,,,,,,,,,,,
