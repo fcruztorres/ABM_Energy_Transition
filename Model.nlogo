@@ -1,7 +1,17 @@
 extensions [csv]
 
 ;;;;;;;;;;;;;;;;;;;;;;;; GLOBALS ;;;;;;;;;;;;;;;;;;;;;;;;
-globals [proposed-projects]
+globals [
+  proposed-projects
+  current-month
+  current-year
+  ; Political-Scenario variables
+  change-in-openness
+  change-in-variety
+]
+
+
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;; BREEDS & BREED VARIABLES ;;;;;;;;;;;;;;;;;;;;;;;;
 breed [municipalities municipality]
@@ -10,6 +20,7 @@ breed [projects project]
 municipalities-own [
   name
   inhabitants
+  yearly-budget
   allocated-funds
   available-personnel
   green-energy-openness
@@ -44,9 +55,14 @@ project-connections-own [
 to setup
   clear-all
   reset-ticks
+
+  set current-month 1
+  set current-year 2021
+
   setup-municipalities
   setup-informal-network
   setup-projects
+  setup-scenarios
 
 end
 
@@ -78,10 +94,11 @@ to setup-municipalities
         ; Variables
         set name item 0 data
         set inhabitants item 1 data
-        set allocated-funds item 2 data
+        set yearly-budget item 2 data
         set available-personnel item 3 data
         set green-energy-openness item 4 data
         set political-variety item 5 data
+        set allocated-funds 0
         set label name
         set color blue
         set shape "circle"
@@ -106,7 +123,6 @@ to setup-municipalities
   file-close ; make sure to close the file
 
 end
-
 
 
 to setup-informal-network
@@ -183,15 +199,91 @@ to setup-projects
 
 end
 
+to setup-scenarios
+  if Political-Scenario = "Green awareness"[
+    set change-in-openness 5
+    set change-in-variety  0
+  ]
 
+  if Political-Scenario = "Conservative push"[
+    set change-in-openness -5
+    set change-in-variety  0
+  ]
+
+  if Political-Scenario = "Polarization"[
+    set change-in-openness 0
+    set change-in-variety 5
+  ]
+
+  if Political-Scenario = "Consolidation"[
+    set change-in-openness 0
+    set change-in-variety -5
+  ]
+
+
+end
 
 ;;;;;;;;;;;;;;;;;;;;;;;; GO FUNCTION ;;;;;;;;;;;;;;;;;;;;;;;;
 
 to go
-  project-proposals-generation
+
+  ; stop simulation if year 2051 is reached
+  if (current-year > 2050)[ stop ]
+
+  ; Handle the external factors
+  external-factors
+
+  display-informal-network
+
   tick
 
+
 end
+
+
+;;;;;;;;;;;;;;;;;;;;;;;; OTHER FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+; Function to deal with the external factors
+to external-factors
+
+  ; Do timekeeping
+  ; In case the year is not over yet
+  ifelse current-month < 12 [
+    set current-month current-month + 1
+  ]
+  ; In case a new year starts
+  [
+    set current-month 1
+    set current-year current-year + 1
+
+    ;Set a new budget
+    ask municipalities [
+      set yearly-budget (yearly-budget * (1 + yearly-budget-increase / 100))
+    ]
+
+
+  ]
+
+
+  ; In case an election happens (every four years)
+  if ((current-year - 2018) mod 4) = 0 and current-month = 1 [
+    ;Change political variety based on external scenarios
+    output-print (word "Year " current-year ": An election took place")
+
+    ask municipalities [
+      set green-energy-openness green-energy-openness  + random-float 1 * change-in-openness
+      set political-variety  political-variety + random-float 1 * change-in-variety
+    ]
+
+  ]
+
+
+  project-proposals-generation
+
+
+end
+
 
 
 to project-proposals-generation
@@ -216,11 +308,7 @@ to project-proposals-generation
     ]
   ]
 
-  ask municipality-connections [
-    set trust trust + random 5 - random 5
-  ]
 
-  display-informal-network
 end
 
 
@@ -243,13 +331,13 @@ to display-informal-network
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-276
-24
-1014
-331
+9
+13
+755
+323
 -1
 -1
-9.613
+9.711
 1
 10
 1
@@ -270,11 +358,11 @@ ticks
 30.0
 
 BUTTON
-26
-63
-92
-96
-NIL
+782
+12
+893
+45
+Setup model run
 setup
 NIL
 1
@@ -286,12 +374,84 @@ NIL
 NIL
 1
 
+CHOOSER
+785
+85
+949
+130
+Political-Scenario
+Political-Scenario
+"Base Case" "Conservative push" "Green awareness" "Polarization" "Consolidation"
+1
+
+OUTPUT
+11
+331
+316
+513
+13
+
+MONITOR
+327
+332
+384
+377
+Year
+current-year
+17
+1
+11
+
+MONITOR
+392
+334
+449
+379
+Month
+current-month
+17
+1
+11
+
+PLOT
+787
+184
+987
+334
+Political Landscape
+Green Energy Openness
+Count
+0.0
+100.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"green-energy-openness" 1.0 1 -13840069 true "" "histogram [green-energy-openness] of municipalities"
+
+SLIDER
+786
+136
+997
+169
+yearly-budget-increase
+yearly-budget-increase
+-15
+15
+3.0
+1
+1
+%
+HORIZONTAL
+
 BUTTON
-111
-61
-174
-94
-NIL
+898
+12
+1025
+45
+Start model run
 go
 T
 1
@@ -302,6 +462,24 @@ NIL
 NIL
 NIL
 1
+
+PLOT
+1005
+182
+1205
+332
+Total yearly budget
+Tick
+Budget
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot sum [yearly-budget] of municipalities"
 
 @#$#@#$#@
 ## WHAT IS IT?
