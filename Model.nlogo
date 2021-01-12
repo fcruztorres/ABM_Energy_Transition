@@ -1,4 +1,4 @@
-extensions [csv]
+extensions [csv py]
 
 ;;;;;;;;;;;;;;;;;;;;;;;; GLOBALS ;;;;;;;;;;;;;;;;;;;;;;;;
 globals [
@@ -8,6 +8,17 @@ globals [
   ; Political-Scenario variables
   change-in-openness
   change-in-variety
+
+  offshore-small-groups
+  offshore-medium-groups
+  offshore-large-groups
+  onshore-small-groups
+  onshore-medium-groups
+  onshore-large-groups
+  receiving-municipalities
+  responsible-municipality
+  receiving-municipalities-size
+  n-projects
 ]
 
 
@@ -45,8 +56,8 @@ directed-link-breed [project-connections project-connection]
 municipality-connections-own [trust] ; trust ranges from -100 to +100, but initally the levels are discretely evaluated from -3 to +3, and then scaled up
 
 project-connections-own [
-  positive-externalities
-  negative-externalities
+  positively-affected
+  negatively-affected
   personnel
   knowledge-needed
 ]
@@ -63,6 +74,7 @@ to setup
   setup-informal-network
   setup-projects
   setup-scenarios
+  setup-municipality-groups
 
 end
 
@@ -168,8 +180,15 @@ to setup-projects
     ; check if the row is empty or not
     if fileHeader <= row  [ ; we are past the header
 
+      ; a higher amount of small projects can be carried out, while sites available for large plants are geographically limited.
+      ; according to the configuration below, it is possible for each costal municipality (five in total) to conceive a small or medium offshore project as worthy of consideration
+      ; small wind or solar projects are possible for each municipality which has the geographical space needed within their territory. Similarly for medium projects.
+      if (item 0 data = "windpark-small-onshore") or (item 0 data = "solarpark-small") [set n-projects 9]
+      if (item 0 data = "windpark-small-offshore") or (item 0 data = "windpark-medium-offshore") or (item 0 data = "windpark-medium-onshore") or (item 0 data = "solarpark-medium") [set n-projects 5]
+      if (item 0 data = "windpark-large-offshore") or (item 0 data = "windpark-large-onshore") or (item 0 data = "solarpark-large") [set n-projects 2]
+
       ;create possible energy projects
-      repeat 10 [
+      repeat n-projects [
         create-projects 1 [
           ; Variables
           set project-type item 0 data
@@ -198,6 +217,114 @@ to setup-projects
   file-close ; make sure to close the file
 
 end
+
+to setup-municipality-groups
+  ;initialize the municipality groups. They will later be populated by all the possible
+  ; angentsets of municipalities that, together, can be assigned to a single energy project
+      set offshore-small-groups []
+      set offshore-medium-groups []
+      set offshore-large-groups []
+      set onshore-small-groups []
+      set onshore-medium-groups []
+      set onshore-large-groups []
+
+
+
+  file-close-all ; close all open files
+
+  if not file-exists? "data/municipality_groups.csv" [
+    error "No file 'projects.csv' found!"
+  ]
+  let fileHeader 1 ; there is 1 header line, line 1 is the first data line (dont forget, we count from 0)
+
+  file-open "data/municipality_groups.csv"
+
+  ; need to skip the first fileHeader rows
+  let row 0 ; the row that is currently read
+
+  ; We'll read all the data in a single loop
+  while [ not file-at-end? ] [
+    ; here the CSV extension grabs a single line and puts the read data in a list
+    let data (csv:from-row  file-read-line)
+
+    ; check if the row is empty or not
+    if fileHeader <= row  [ ; we are past the header
+
+      repeat 1 [
+        ; setup the global variables realted to municipality groups
+        if item 0 data = "offshore-small" [
+          ; read and store the row of the csv file, this represents a list/group of municipalities which can be
+          ; assigned a small offshore windpark project
+          let offshore-small-group municipalities with [(name = item 1 data) OR (name = item 2 data) OR (name = item 3 data)]
+
+          ; add such row to the list of all possible groups/lists of municipalities that can be assigned
+          ; a small offshore windpark project
+          set offshore-small-groups lput offshore-small-group offshore-small-groups
+        ]
+
+        if item 0 data = "offshore-medium" [
+          ; read and store the row of the csv file, this represents a list/group of municipalities which can be
+          ; assigned a medium offshore windpark project
+          let offshore-medium-group municipalities with [(name = item 1 data) OR (name = item 2 data) OR (name = item 3 data) OR (name = item 4 data)]
+
+          ; add such row to the list of all possible groups/lists of municipalities that can be assigned
+          ; a medium offshore windpark project
+          set offshore-medium-groups lput offshore-medium-group offshore-medium-groups
+        ]
+
+        if item 0 data = "offshore-large" [
+          ; since the list of all possible groups/lists of municipalities that can be assigned a large offshore windpark project
+          ; is composed only of one agentset
+          set offshore-large-groups municipalities with [(name = item 1 data) OR (name = item 2 data) OR (name = item 3 data) OR (name = item 4 data) OR (name = item 5 data)]
+        ]
+
+        if item 0 data = "onshore-small" [
+          ifelse item 3 data != ""
+          [let onshore-small-group municipalities with [(name = item 1 data) OR (name = item 2 data) OR (name = item 3 data)]
+           set onshore-small-groups lput onshore-small-group onshore-small-groups]
+          [ifelse item 2 data != ""
+            [let onshore-small-group municipalities with [(name = item 1 data) OR (name = item 2 data)]
+             set onshore-small-groups lput onshore-small-group onshore-small-groups]
+            [let onshore-small-group municipalities with [name = item 1 data]
+             set onshore-small-groups lput onshore-small-group onshore-small-groups]
+          ]
+        ]
+
+        if item 0 data = "onshore-medium" [
+          ifelse item 3 data != ""
+          [let onshore-medium-group municipalities with [(name = item 1 data) OR (name = item 2 data) OR (name = item 3 data)]
+           set onshore-medium-groups lput onshore-medium-group onshore-medium-groups]
+          [ifelse item 2 data != ""
+            [let onshore-medium-group municipalities with [(name = item 1 data) OR (name = item 2 data)]
+             set onshore-medium-groups lput onshore-medium-group onshore-medium-groups]
+            [let onshore-medium-group municipalities with [name = item 1 data]
+             set onshore-medium-groups lput onshore-medium-group onshore-medium-groups]
+          ]
+        ]
+
+       if item 0 data = "onshore-large" [
+          ifelse item 3 data != ""
+          [let onshore-large-group municipalities with [(name = item 1 data) OR (name = item 2 data) OR (name = item 3 data)]
+           set onshore-large-groups lput onshore-large-group onshore-large-groups]
+          [ifelse item 2 data != ""
+            [let onshore-large-group municipalities with [(name = item 1 data) OR (name = item 2 data)]
+             set onshore-large-groups lput onshore-large-group onshore-large-groups]
+            [let onshore-large-group municipalities with [name = item 1 data]
+             set onshore-large-groups lput onshore-large-group onshore-large-groups]
+          ]
+        ]
+      ]
+
+    ];end past header
+
+    set row row + 1 ; increment the row counter for the header skip
+
+  ]; end of while there are rows
+
+  file-close ; make sure to close the file
+
+end
+
 
 to setup-scenarios
   if Political-Scenario = "Green awareness"[
@@ -293,18 +420,73 @@ to project-proposals-generation
     ; once projects are proposed to and taken into account by a municipality, they are shown and associated with the municipality which received it
     if hidden? = True [
       set hidden? False
-      create-project-connections-to n-of 1 municipalities [
+
+      ; a group of municipalities will be concerned by the proposed project
+      if [project-type] of proposed-projects = ["windpark-small-offshore"]
+      [set receiving-municipalities one-of offshore-small-groups]
+
+      if [project-type] of proposed-projects = ["solarpark-small"]
+      [set receiving-municipalities one-of onshore-small-groups]
+
+      if [project-type] of proposed-projects = ["windpark-small-onshore"]
+      [set receiving-municipalities one-of onshore-small-groups]
+
+      if [project-type] of proposed-projects = ["windpark-medium-offshore"]
+      [set receiving-municipalities one-of offshore-medium-groups]
+
+      if [project-type] of proposed-projects = ["solarpark-medium"]
+      [set receiving-municipalities one-of onshore-medium-groups]
+
+      if [project-type] of proposed-projects = ["windpark-medium-onshore"]
+      [set receiving-municipalities one-of onshore-medium-groups]
+
+      if [project-type] of proposed-projects = ["windpark-large-offshore"]
+      [set receiving-municipalities one-of offshore-large-groups]
+
+      if [project-type] of proposed-projects = ["solarpark-large"]
+      [set receiving-municipalities one-of onshore-large-groups]
+
+      if [project-type] of proposed-projects = ["windpark-large-onshore"]
+      [set receiving-municipalities one-of onshore-large-groups]
+
+      ; one municipality will actually receive and take into account the project, i.e. the "responsible municipality"
+      ; while all others will only be "positively affected" or "negatively affected". Naturally, the responsible municipality will also be
+      ; positively or negatively affected by the project.
+
+
+      carefully
+      [set responsible-municipality one-of receiving-municipalities]
+      [set responsible-municipality receiving-municipalities]
+
+
+      create-project-connection-to responsible-municipality [  ; remember to use "create-project-connection agent" to create 1 link, while "create-project-connections agentset" to create multiple
         if [project-size] of proposed-projects = 1 [set knowledge-needed 400] ; in hours*person (only managerial knowledge, perhaps the technical one is out of scope, since it would be so much (entire teams of workers
         if [project-size] of proposed-projects = 2 [set knowledge-needed 450] ; not belonging to the municipality).
         if [project-size] of proposed-projects = 3 [set knowledge-needed 500]
 
-        ; the ones below need to be integrated with the municipalities characteristics
+
         set personnel 0 ; this should be the number of people a municipality wants to devote to this project, it will increase, decreasing the available personnel of the municipality
-        set positive-externalities 0   ; these two need to be lists of municipalities to be involved
-        set negative-externalities 0   ; but we need to know which municipalities are neighboring with which, maybe we could write that in the municipalities.csv file
 
+        carefully [
+          ; this branch of code will be executed when the "receiving-municipalities" is an agentset of 2, 3, 4 or 5 municipalities
+          set receiving-municipalities-size count receiving-municipalities
+          let positively-affected-size round receiving-municipalities-size / 2 ; it is assumed that on average 50% of the municipalities will a-priori consider themeselves to be "losers" from a project, while the other 50% to be "winners"
+          let negatively-affected-size receiving-municipalities-size - positively-affected-size
 
+          if positively-affected-size > 0 [set positively-affected n-of positively-affected-size receiving-municipalities]   ; the agentset of those other municipalities involved, which are always neighors of each other
+          if negatively-affected-size > 0 [set negatively-affected n-of negatively-affected-size receiving-municipalities]
+        ][
+          ; this branch of code will be executed when the "receiving-municipalities" is one agent only, and the "count" command of the oter branch fails
+          let positively-affected-size one-of (list 0 1) ; it is assumed that on average 50% of the municipalities will a-priori consider themeselves to be "losers" from a project, while the other 50% to be "winners"
+          let negatively-affected-size 1 - positively-affected-size
+
+          if positively-affected-size > 0 [set positively-affected receiving-municipalities]   ; the agentset of those other municipalities involved, which are always neighors of each other
+          if negatively-affected-size > 0 [set negatively-affected receiving-municipalities]
+        ]
       ]
+
+
+
     ]
   ]
 
@@ -1086,7 +1268,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.2-beta2
+NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
