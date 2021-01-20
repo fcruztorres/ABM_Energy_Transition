@@ -140,7 +140,8 @@ to setup-municipalities
         if inhabitants > 100000 [set city-council-size 39]
         if inhabitants > 200000 [set city-council-size 45]
 
-
+        ;preliminary personnel setting based on inhabitants
+        set available-personnel round (inhabitants / 17000 * 2)
 
         ; municipalities are generated in the upper part of the screen
         let x-cor random-xcor
@@ -217,26 +218,21 @@ to setup-projects
       if (item 0 data = "windpark-large-offshore") or (item 0 data = "windpark-large-onshore") or (item 0 data = "solarpark-large") [set n-projects 2]
 
       ;create possible energy projects
-      repeat n-projects [
-        create-projects 1 [
-          ; Variables
-          set project-type item 0 data
-          set cost item 1 data
-          set installed-power item 2 data
-          set project-size item 3 data
-          set shape project-type
+      create-projects n-projects [
+        ; Variables
+        set project-type item 0 data
+        set cost item 1 data
+        set installed-power item 2 data
+        set project-size item 3 data
+        set shape project-type
 
-          ; projects are generated in the lower part of the screen
-          let x-cor random-xcor
-          let y-cor random-ycor
-          ;while [x-cor >= world-width / 2] [set x-cor random-xcor]
-          while [y-cor >= world-height / 2] [set y-cor random-ycor]
-          setxy x-cor y-cor
+        let x-cor random-xcor
+        let y-cor random-ycor
 
-          set size 3
-          set hidden? True
-        ]
+        set size 3
+        set hidden? True
       ]
+
     ];end past header
 
     set row row + 1 ; increment the row counter for the header skip
@@ -452,8 +448,15 @@ end
 
 to project-proposals-generation
   ; on average, every year a new project is proposed to and taken into account by a municipality in the region
-  set proposed-projects n-of (max list 0 random-normal 0.083 0.7) projects ; 0.083 is an approximation of 1/12
+  ;set proposed-projects n-of (max list 0 random-normal 0.083 0.7) projects ; 0.083 is an approximation of 1/12
+  set proposed-projects n-of random ((total-project-proposal-frequency + 1) / 12) projects
   ask proposed-projects [
+    ; Duplicate the project so that there are always sufficient projects
+    hatch 1 [
+      set hidden? True
+      setxy random-xcor random-ycor
+
+    ]
     ; once projects are proposed to and taken into account by a municipality, they are shown and associated with the municipality which received it
     if hidden? = True [
 
@@ -514,20 +517,19 @@ to project-proposals-generation
             ifelse externality [
               set positively-affected True
               set negatively-affected False
-              set color 53
+              set color 83
             ][
               set positively-affected False
               set negatively-affected True
-              set color 13
+              set color 23
             ]
 
 
           ]
         ]
       ]
-
+      ; Show project on map
       set hidden? False
-
 
 
     ]
@@ -545,18 +547,24 @@ to manage-projects
   if any? new-projects [
 
     ; Get the number of votes needed depending on the aggregation rules
-    let number-votes-needed round 0.5 * city-council-size
+    let number-votes-needed round (0.5 * city-council-size)
 
     ; Iterate over the new projects proposed
     ask new-projects [
 
       let project-to-discuss other-end
 
+      ; In 50% of the cases, the city council decision is delayed
+      if random-float 1 > 0.5 [
+        output-print (word "PROJECT DELAYED IN CITY COUNCIL: " [project-type] of project-to-discuss " in " [name] of myself)
+        stop
+      ]
+
       ; Threshold to vote yes depends on the size of the project
       let threshold 0
-      if [project-size] of project-to-discuss = 1 [set threshold 20]
-      if [project-size] of project-to-discuss = 2 [set threshold 30]
-      if [project-size] of project-to-discuss = 3 [set threshold 40]
+      if [project-size] of project-to-discuss = 1 [set threshold 30]
+      if [project-size] of project-to-discuss = 2 [set threshold 40]
+      if [project-size] of project-to-discuss = 3 [set threshold 50]
 
       let number-pro-votes 0
 
@@ -567,19 +575,30 @@ to manage-projects
       ; Check for vote results
       ifelse number-pro-votes >= number-votes-needed [
         ; in case a project is accepted, assign one person working on the project
-        output-print (word "PROJECT ACCEPTED: " [project-type] of project-to-discuss " in " [name] of myself)
-        set personnel 1
+        output-print (word "PROJECT ACCEPTED IN CITY COUNCIL: " [project-type] of project-to-discuss " in " [name] of myself " (" number-pro-votes " out of " number-votes-needed " votes needed)")
+        set personnel 0.5 ; to recognize in a later step that the project was accepted
       ][
         ; in case a project is rejected
-        output-print (word "PROJECT REJECTED: " [project-type] of project-to-discuss " in " [name] of myself " (" number-pro-votes " out of " number-votes-needed " votes needed)")
+        output-print (word "PROJECT REJECTED IN CITY COUNCIL: " [project-type] of project-to-discuss " in " [name] of myself " (" number-pro-votes " out of " number-votes-needed " votes needed)")
         ask project-to-discuss [die]
       ]
+    ]
+  ]
 
+  ; Assign the available personnal to the projects relative to their size in GwH (larger projects are assigned more people)
+  let projects-in-progress my-project-connections with [personnel > 0 AND owner = True]
+  if any? projects-in-progress [
 
-
-
+    ; Get total GwH of all the projects proposed
+    let total-gwh 0
+    ask projects-in-progress [
+      set total-gwh total-gwh + [installed-power] of other-end
     ]
 
+    ; Assign the personal relative to the project size
+    ask projects-in-progress [
+      set personnel round ([available-personnel] of myself * [installed-power] of other-end /  total-gwh)
+    ]
 
 
   ]
@@ -589,7 +608,7 @@ to manage-projects
 
   ; Gain project-specific knowledge based on personell assigned to the projects
   ask my-project-connections [
-     set knowledge-needed max list 0  knowledge-needed - personnel
+     set knowledge-needed max list 0  (knowledge-needed - personnel)
   ]
 
 
@@ -690,10 +709,10 @@ current-year
 11
 
 MONITOR
-631
-331
-688
-376
+627
+329
+684
+374
 Month
 current-month
 17
@@ -705,7 +724,7 @@ PLOT
 184
 987
 334
-Political Landscape
+Political Overview
 Green Energy Openness
 Count
 0.0
@@ -751,11 +770,11 @@ NIL
 1
 
 PLOT
-1005
-182
-1205
-332
-Total yearly budget
+993
+185
+1193
+335
+Budget Overview
 Tick
 Budget
 0.0
@@ -769,10 +788,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot sum [yearly-budget] of municipalities"
 
 PLOT
-788
-354
-1205
-504
+787
+340
+1105
+490
 Projects overview
 Tick
 Number Projects
@@ -784,17 +803,50 @@ true
 true
 "" ""
 PENS
-"Projects proposed" 1.0 0 -16777216 true "" "plot count project-connections with [owner = True]"
+"In municipality" 1.0 0 -16777216 true "" "plot count project-connections with [owner = True]"
 
 CHOOSER
-1076
-82
-1218
-127
+958
+85
+1100
+130
 Aggregation-Rules
 Aggregation-Rules
 "Unanimity" "Majority"
 0
+
+PLOT
+1111
+339
+1412
+489
+Knowlege Overview
+Tick
+Person*Month
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"Knowledge needed" 1.0 0 -16777216 true "" "plot sum [knowledge-needed] of project-connections with [owner = True]"
+
+SLIDER
+1016
+135
+1339
+168
+total-project-proposal-frequency
+total-project-proposal-frequency
+1
+25
+12.0
+1
+1
+per year
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
