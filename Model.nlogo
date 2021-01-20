@@ -1,4 +1,4 @@
-extensions [csv py]
+extensions [csv]
 
 ;;;;;;;;;;;;;;;;;;;;;;;; GLOBALS ;;;;;;;;;;;;;;;;;;;;;;;;
 globals [
@@ -53,7 +53,7 @@ undirected-link-breed [municipality-connections municipality-connection]
 directed-link-breed [project-connections project-connection]
 
 
-municipality-connections-own [trust] ; trust ranges from -100 to +100, but initally the levels are discretely evaluated from -3 to +3, and then scaled up
+municipality-connections-own [trust] ; trust ranges from 0 to 100, the values from the csv range in 5 discrete steps (0 to 5) which are then scaled up
 
 project-connections-own [
   positively-affected
@@ -148,7 +148,7 @@ to setup-informal-network
     ask my-out-municipality-connections [
       if trust = 0 [ ; in case the trust is zero, possibly override
         let municipality-trust item (municipality-id + 1) trust-ratings ; select the correct row from the trust table
-        set trust (item ([who] of other-end + 1) municipality-trust * 30) ; select the correct column from the trust table
+        set trust (item ([who] of other-end + 1) municipality-trust * 20) ; select the correct column from the trust table
       ]
     ]
   ]
@@ -498,17 +498,16 @@ end
 to display-informal-network
   ; Color based on different trust values
   ask municipality-connections [
-    ifelse trust = 0 [ hide-link ] [ show-link ]
-    ifelse trust > 0
-    [set color (50 + trust / 20)] ; shade of green
-    [set color (10 - trust / 20)] ; shade of red
+    ifelse trust = 0 [ hide-link ] [
+      show-link
+      set color (50 + trust / 20)
+    ]
   ]
 
   layout-spring municipalities municipality-connections with [trust > 50]  0.5 2.5 3
   layout-spring municipalities municipality-connections with [trust > 0]  0.5 5 3
   layout-spring municipalities municipality-connections with [trust = 0]  0.5 10 3
-  layout-spring municipalities municipality-connections with [trust < 0]  0.5 15 3
-  layout-spring municipalities municipality-connections with [trust < -50]  0.5 20 3
+
 
 end
 @#$#@#$#@
@@ -1268,7 +1267,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.1.2-beta2
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
