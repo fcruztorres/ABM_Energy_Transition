@@ -39,6 +39,7 @@ municipalities-own [
   green-energy-openness
   political-variety
   city-council-size
+  knowledge-received
 ]
 
 projects-own [
@@ -142,6 +143,7 @@ to setup-municipalities
 
         ;preliminary personnel setting based on inhabitants
         set available-personnel round (inhabitants / 50000 * 2)
+        set knowledge-received 0
 
         ; municipalities are generated in the upper part of the screen
         let x-cor random-xcor
@@ -460,7 +462,7 @@ to project-proposals-generation
       setxy random-xcor random-ycor
 
     ]
-    ; once projects are proposed to and taken into account by a municipality, they are shown and associated with the municipality which received it
+
 
 
     ; a group of municipalities will be concerned by the proposed project
@@ -531,7 +533,9 @@ to project-proposals-generation
         ]
       ]
     ]
-    ; Show project on map
+
+
+    ; once projects are proposed to and taken into account by a municipality, they are shown and associated with the municipality which received it
     set hidden? False
 
 
@@ -594,23 +598,20 @@ to manage-projects
             set negatively-affected-municipalities (turtle-set negatively-affected-municipalities self)
           ]
         ]
-
-        if any? negatively-affected-municipalities [
-          print (word "Several municipalities are negatively affected by the project of " [name] of myself ":")
-        ]
+;
+;        if any? negatively-affected-municipalities [
+;          print (word "Several municipalities are negatively affected by the project of " [name] of myself ":")
+;        ]
 
         let project-manager myself
 
         ask negatively-affected-municipalities [
           ask municipality-connection-with project-manager [
-            print (word "Trust decreased between " [name] of project-manager " (project manager) and " [name] of myself)
-            set trust trust * 0.8
+            ;print (word "Trust decreased between " [name] of project-manager " (project manager) and " [name] of myself)
+            set trust trust * 0.8 ; 20% descrease in trust
           ]
 
         ]
-
-
-
 
 
       ][
@@ -644,10 +645,17 @@ to manage-projects
 
 
   ; Gain project-specific knowledge based on personell assigned to the projects
-  ask my-project-connections [
+
+  ask projects-in-progress [
      set knowledge-needed max list 0  (knowledge-needed - personnel)
+
+    ; Allocate the received knowledge from other municipalities
+    set knowledge-needed max list 0 (knowledge-needed - [knowledge-received] of myself / count projects-in-progress)
+
   ]
 
+  ; Set received knowledge back to 0
+  set knowledge-received 0
 
 
 
@@ -656,14 +664,34 @@ end
 
 to communicate-informally
 
-  ; Exchange project-specific knowledge, based on
-  ; - trust and on the
-  ; - similarities from the projects that are about to be implemented
+  ; Exchange project-specific knowledge
+
+  ; Get a list of own projects that are currently managed
+  let own-projects []
+  ask my-project-connections with [owner]  [
+    set own-projects lput [project-type] of other-end own-projects
+  ]
+
+  ; selects all the municipalities that have any project connections which they own, work on and which are in the list of the municipalities own projects
+  ask other municipalities with [any? my-project-connections with [owner AND personnel > 0 AND member? [project-type] of other-end own-projects]] [
+
+    ; get current trust level between municipalities
+    let current-trust-level [trust] of municipality-connection-with myself
+
+    ; The more trust there is, the higher the likelihood of information sharing
+    if random 100 < current-trust-level [
+
+      ; Knowledge that is shared depends on trust and the amount of available personal
+      set knowledge-received [available-personnel] of myself * (current-trust-level / 100)
+
+      ask municipality-connection-with myself [
+        set trust min list 100 (trust * 1.01)
+      ]
+    ]
+  ]
 
 
-  ; Form coalitions with other actors, based on
-  ; - externalities
-  ; -
+  ; Form coalitions with other actors, that are also negatively or positively affected
 
 
 
@@ -686,7 +714,7 @@ to update-layout
   layout-spring municipalities municipality-connections with [trust > 0]  0.5 20 3
   layout-spring municipalities municipality-connections with [trust = 0]  0.5 70 3
 
-  layout-spring turtles project-connections 0.5 15 2
+  layout-spring projects project-connections 0.5 15 2
 
 
 end
@@ -743,7 +771,7 @@ CHOOSER
 Political-Scenario
 Political-Scenario
 "Base Case" "Conservative push" "Green awareness" "Polarization" "Consolidation"
-0
+2
 
 OUTPUT
 918
@@ -753,10 +781,10 @@ OUTPUT
 13
 
 MONITOR
-921
-228
-978
-273
+854
+25
+911
+70
 Year
 current-year
 17
@@ -764,10 +792,10 @@ current-year
 11
 
 MONITOR
-921
-277
-978
-322
+854
+74
+911
+119
 Month
 current-month
 17
@@ -845,7 +873,7 @@ PENS
 PLOT
 756
 385
-1140
+1055
 535
 Projects overview
 Tick
@@ -872,7 +900,7 @@ Aggregation-Rules
 0
 
 PLOT
-1147
+1065
 384
 1405
 534
@@ -887,7 +915,7 @@ true
 true
 "" ""
 PENS
-"Knowledge needed" 1.0 0 -16777216 true "" "plot sum [knowledge-needed] of project-connections with [owner = True]"
+"Knowledge needed" 1.0 0 -16777216 true "" "plot sum [knowledge-needed] of project-connections with [owner = True AND personnel > 0]"
 
 SLIDER
 558
@@ -898,7 +926,7 @@ total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-20.0
+12.0
 1
 1
 per year
@@ -922,7 +950,7 @@ SWITCH
 413
 show-project-rejections
 show-project-rejections
-0
+1
 1
 -1000
 
@@ -936,6 +964,24 @@ show-project-approvals
 0
 1
 -1000
+
+PLOT
+791
+228
+991
+378
+Trust
+Tick
+Trust
+0.0
+10.0
+0.0
+10.0
+true
+false
+"" ""
+PENS
+"Trust" 1.0 0 -16777216 true "" "plot mean [trust] of municipality-connections"
 
 @#$#@#$#@
 ## WHAT IS IT?
