@@ -141,7 +141,7 @@ to setup-municipalities
         if inhabitants > 200000 [set city-council-size 45]
 
         ;preliminary personnel setting based on inhabitants
-        set available-personnel round (inhabitants / 17000 * 2)
+        set available-personnel round (inhabitants / 50000 * 2)
 
         ; municipalities are generated in the upper part of the screen
         let x-cor random-xcor
@@ -387,7 +387,10 @@ to go
 
   ; Do municipality actions
   ask municipalities [
+
     manage-projects
+
+    communicate-informally
   ]
 
 
@@ -449,7 +452,7 @@ end
 to project-proposals-generation
   ; on average, every year a new project is proposed to and taken into account by a municipality in the region
   ;set proposed-projects n-of (max list 0 random-normal 0.083 0.7) projects ; 0.083 is an approximation of 1/12
-  set proposed-projects n-of random ((total-project-proposal-frequency + 1) / 12) projects
+  set proposed-projects n-of random ((total-project-proposal-frequency + 1) / 12) projects with [hidden? = True]
   ask proposed-projects [
     ; Duplicate the project so that there are always sufficient projects
     hatch 1 [
@@ -458,81 +461,81 @@ to project-proposals-generation
 
     ]
     ; once projects are proposed to and taken into account by a municipality, they are shown and associated with the municipality which received it
-    if hidden? = True [
-
-      ; a group of municipalities will be concerned by the proposed project
-      if project-type = "windpark-small-offshore"  [set receiving-municipalities one-of offshore-small-groups]
-      if project-type = "solarpark-small"  [set receiving-municipalities one-of onshore-small-groups]
-      if project-type = "windpark-small-onshore"  [set receiving-municipalities one-of onshore-small-groups]
-      if project-type = "windpark-medium-offshore"   [set receiving-municipalities one-of offshore-medium-groups]
-      if project-type = "solarpark-medium"   [set receiving-municipalities one-of onshore-medium-groups]
-      if project-type = "windpark-medium-onshore"   [set receiving-municipalities one-of onshore-medium-groups]
-      if project-type = "windpark-large-offshore"  [set receiving-municipalities one-of offshore-large-groups]
-      if project-type = "solarpark-large"  [set receiving-municipalities one-of onshore-large-groups]
-      if project-type = "windpark-large-onshore"  [set receiving-municipalities one-of onshore-large-groups]
 
 
-      ; determine the knowledge needed depending on the project size
-      let knowledge-needed-for-project 0
-      if (project-size = 1) [set knowledge-needed-for-project 50] ; in months*person (only managerial knowledge, perhaps the technical one is out of scope, since it would be so much (entire teams of workers
-      if (project-size = 2) [set knowledge-needed-for-project 100] ; not belonging to the municipality).
-      if (project-size = 3) [set knowledge-needed-for-project 200]
-
-      ; one municipality will actually receive and take into account the project, i.e. the "responsible municipality"
-      ; while all others will only be "positively affected" or "negatively affected". Naturally, the responsible municipality will also be
-      ; positively or negatively affected by the project.
-
-      ifelse is-agentset? receiving-municipalities[
-        set responsible-municipality one-of receiving-municipalities
-      ][
-        set responsible-municipality receiving-municipalities
-      ]
-
-      ; Create link to the project owner
-      create-project-connection-to responsible-municipality [  ; remember to use "create-project-connection agent" to create 1 link, while "create-project-connections agentset" to create multiple
-
-        set knowledge-needed knowledge-needed-for-project
-        set priority 10 ; initial prio is 10 if a municipality is a project owner
-        set personnel 0 ; this should be the number of people a municipality wants to devote to this project, it will increase, decreasing the available personnel of the municipality
-        set positively-affected True ; a municipality responsible is assumed to benefit from a project automatically
-        set owner True ; set the municipality to the "responsible" municipality
-        set shape "project-owner"
-      ]
-
-      ; Check if there are multiple municipalities left in the agentset
-      if is-agentset? receiving-municipalities [
-
-        ; remove responsible municipality from agent set
-        ask responsible-municipality [
-          set receiving-municipalities other receiving-municipalities
-        ]
-
-        if is-agentset? receiving-municipalities [
-          create-project-connections-to receiving-municipalities [
-            set owner False
-            set shape "project-externality"
-            set priority 0 ; initial prio is 0 if a municipality is only affected
-
-            let externality one-of [ true false ] ; true = positive externalities, false = negative externalities
-            ifelse externality [
-              set positively-affected True
-              set negatively-affected False
-              set color 83
-            ][
-              set positively-affected False
-              set negatively-affected True
-              set color 23
-            ]
+    ; a group of municipalities will be concerned by the proposed project
+    if project-type = "windpark-small-offshore"  [set receiving-municipalities one-of offshore-small-groups]
+    if project-type = "solarpark-small"  [set receiving-municipalities one-of onshore-small-groups]
+    if project-type = "windpark-small-onshore"  [set receiving-municipalities one-of onshore-small-groups]
+    if project-type = "windpark-medium-offshore"   [set receiving-municipalities one-of offshore-medium-groups]
+    if project-type = "solarpark-medium"   [set receiving-municipalities one-of onshore-medium-groups]
+    if project-type = "windpark-medium-onshore"   [set receiving-municipalities one-of onshore-medium-groups]
+    if project-type = "windpark-large-offshore"  [set receiving-municipalities one-of offshore-large-groups]
+    if project-type = "solarpark-large"  [set receiving-municipalities one-of onshore-large-groups]
+    if project-type = "windpark-large-onshore"  [set receiving-municipalities one-of onshore-large-groups]
 
 
-          ]
-        ]
-      ]
-      ; Show project on map
-      set hidden? False
+    ; determine the knowledge needed depending on the project size
+    let knowledge-needed-for-project 0
+    if (project-size = 1) [set knowledge-needed-for-project 50] ; in months*person (only managerial knowledge, perhaps the technical one is out of scope, since it would be so much (entire teams of workers
+    if (project-size = 2) [set knowledge-needed-for-project 100] ; not belonging to the municipality).
+    if (project-size = 3) [set knowledge-needed-for-project 200]
 
+    ; one municipality will actually receive and take into account the project, i.e. the "responsible municipality"
+    ; while all others will only be "positively affected" or "negatively affected". Naturally, the responsible municipality will also be
+    ; positively or negatively affected by the project.
 
+    ifelse is-agentset? receiving-municipalities[
+      set responsible-municipality one-of receiving-municipalities
+    ][
+      set responsible-municipality receiving-municipalities
     ]
+
+    ; Create link to the project owner
+    create-project-connection-to responsible-municipality [  ; remember to use "create-project-connection agent" to create 1 link, while "create-project-connections agentset" to create multiple
+
+      set knowledge-needed knowledge-needed-for-project
+      set priority 10 ; initial prio is 10 if a municipality is a project owner
+      set personnel 0 ; this should be the number of people a municipality wants to devote to this project, it will increase, decreasing the available personnel of the municipality
+      set positively-affected True ; a municipality responsible is assumed to benefit from a project automatically
+      set owner True ; set the municipality to the "responsible" municipality
+      set shape "project-owner"
+    ]
+
+    ; Check if there are multiple municipalities left in the agentset
+    if is-agentset? receiving-municipalities [
+
+      ; remove responsible municipality from agent set
+      ask responsible-municipality [
+        set receiving-municipalities other receiving-municipalities
+      ]
+
+      if is-agentset? receiving-municipalities [
+        create-project-connections-to receiving-municipalities [
+          set owner False
+          set shape "project-externality"
+          set priority 0 ; initial prio is 0 if a municipality is only affected
+
+          let externality one-of [ true false ] ; true = positive externalities, false = negative externalities
+          ifelse externality [
+            set positively-affected True
+            set negatively-affected False
+            set color 83
+          ][
+            set positively-affected False
+            set negatively-affected True
+            set color 23
+          ]
+
+
+        ]
+      ]
+    ]
+    ; Show project on map
+    set hidden? False
+
+
+
   ]
 
 
@@ -556,7 +559,9 @@ to manage-projects
 
       ; In 50% of the cases, the city council decision is delayed
       if random-float 1 > 0.5 [
-        output-print (word "PROJECT DELAYED IN CITY COUNCIL: " [project-type] of project-to-discuss " in " [name] of myself)
+        if show-project-delay [
+          output-print (word "PROJECT DELAYED IN CITY COUNCIL: " [project-type] of project-to-discuss " in " [name] of myself)
+        ]
         stop
       ]
 
@@ -575,11 +580,45 @@ to manage-projects
       ; Check for vote results
       ifelse number-pro-votes >= number-votes-needed [
         ; in case a project is accepted, assign one person working on the project
-        output-print (word "PROJECT ACCEPTED IN CITY COUNCIL: " [project-type] of project-to-discuss " in " [name] of myself " (" number-pro-votes " out of " number-votes-needed " votes needed)")
+        if show-project-approvals [
+          output-print (word "PROJECT ACCEPTED IN CITY COUNCIL: " [project-type] of project-to-discuss " in " [name] of myself " (" number-pro-votes " out of " number-votes-needed " votes needed)")
+        ]
+
         set personnel 0.5 ; to recognize in a later step that the project was accepted
+
+        ; If accepted, the trust towards a municipality with negative externalities is reduced
+        let negatively-affected-municipalities turtle-set nobody
+
+        ask [link-neighbors] of project-to-discuss [
+          if [negatively-affected = True] of link-with project-to-discuss [
+            set negatively-affected-municipalities (turtle-set negatively-affected-municipalities self)
+          ]
+        ]
+
+        if any? negatively-affected-municipalities [
+          print (word "Several municipalities are negatively affected by the project of " [name] of myself ":")
+        ]
+
+        let project-manager myself
+
+        ask negatively-affected-municipalities [
+          ask municipality-connection-with project-manager [
+            print (word "Trust decreased between " [name] of project-manager " (project manager) and " [name] of myself)
+            set trust trust * 0.8
+          ]
+
+        ]
+
+
+
+
+
       ][
         ; in case a project is rejected
-        output-print (word "PROJECT REJECTED IN CITY COUNCIL: " [project-type] of project-to-discuss " in " [name] of myself " (" number-pro-votes " out of " number-votes-needed " votes needed)")
+
+        if show-project-rejections [
+          output-print (word "PROJECT REJECTED IN CITY COUNCIL: " [project-type] of project-to-discuss " in " [name] of myself " (" number-pro-votes " out of " number-votes-needed " votes needed)")
+        ]
         ask project-to-discuss [die]
       ]
     ]
@@ -597,19 +636,35 @@ to manage-projects
 
     ; Assign the personal relative to the project size
     ask projects-in-progress [
-      set personnel round ([available-personnel] of myself * [installed-power] of other-end /  total-gwh)
+      set personnel max list 1 round ([available-personnel] of myself * [installed-power] of other-end /  total-gwh)
     ]
 
 
   ]
-
-  ; Prioritize projects
 
 
   ; Gain project-specific knowledge based on personell assigned to the projects
   ask my-project-connections [
      set knowledge-needed max list 0  (knowledge-needed - personnel)
   ]
+
+
+
+
+end
+
+
+to communicate-informally
+
+  ; Exchange project-specific knowledge, based on
+  ; - trust and on the
+  ; - similarities from the projects that are about to be implemented
+
+
+  ; Form coalitions with other actors, based on
+  ; - externalities
+  ; -
+
 
 
 
@@ -627,9 +682,9 @@ to update-layout
     ]
   ]
 
-  layout-spring municipalities municipality-connections with [trust > 50]  0.5 2.5 3
-  layout-spring municipalities municipality-connections with [trust > 0]  0.5 5 3
-  layout-spring municipalities municipality-connections with [trust = 0]  0.5 10 3
+  layout-spring municipalities municipality-connections with [trust > 50]  0.5 10 3
+  layout-spring municipalities municipality-connections with [trust > 0]  0.5 20 3
+  layout-spring municipalities municipality-connections with [trust = 0]  0.5 70 3
 
   layout-spring turtles project-connections 0.5 15 2
 
@@ -637,13 +692,13 @@ to update-layout
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-9
-13
-755
-323
+10
+24
+546
+561
 -1
 -1
-9.711
+6.95
 1
 10
 1
@@ -656,7 +711,7 @@ GRAPHICS-WINDOW
 0
 75
 0
-30
+75
 0
 0
 1
@@ -664,10 +719,10 @@ ticks
 30.0
 
 BUTTON
-782
-12
-893
-45
+557
+24
+770
+57
 Setup model run
 setup
 NIL
@@ -681,27 +736,27 @@ NIL
 1
 
 CHOOSER
-785
-85
-949
-130
+558
+194
+769
+239
 Political-Scenario
 Political-Scenario
 "Base Case" "Conservative push" "Green awareness" "Polarization" "Consolidation"
-2
+0
 
 OUTPUT
-13
-335
-550
-517
+918
+25
+1402
+207
 13
 
 MONITOR
-566
-329
-623
-374
+921
+228
+978
+273
 Year
 current-year
 17
@@ -709,10 +764,10 @@ current-year
 11
 
 MONITOR
-627
-329
-684
-374
+921
+277
+978
+322
 Month
 current-month
 17
@@ -720,10 +775,10 @@ current-month
 11
 
 PLOT
-787
-184
-987
-334
+998
+228
+1198
+378
 Political Overview
 Green Energy Openness
 Count
@@ -738,10 +793,10 @@ PENS
 "green-energy-openness" 1.0 1 -13840069 true "" "histogram [green-energy-openness] of municipalities"
 
 SLIDER
-786
-136
-997
-169
+558
+151
+769
+184
 yearly-budget-increase
 yearly-budget-increase
 -15
@@ -753,10 +808,10 @@ yearly-budget-increase
 HORIZONTAL
 
 BUTTON
-898
-12
-1025
-45
+558
+61
+769
+94
 Start model run
 go
 T
@@ -770,10 +825,10 @@ NIL
 1
 
 PLOT
-993
-185
-1193
-335
+1204
+229
+1404
+379
 Budget Overview
 Tick
 Budget
@@ -788,10 +843,10 @@ PENS
 "default" 1.0 0 -16777216 true "" "plot sum [yearly-budget] of municipalities"
 
 PLOT
-787
-340
-1105
-490
+756
+385
+1140
+535
 Projects overview
 Tick
 Number Projects
@@ -803,23 +858,24 @@ true
 true
 "" ""
 PENS
-"In municipality" 1.0 0 -16777216 true "" "plot count project-connections with [owner = True]"
+"Accepted by municipalities" 1.0 0 -16777216 true "" "plot count project-connections with [owner = True]"
+"Projects implemented" 1.0 0 -14439633 true "" "plot count projects with [active = True]"
 
 CHOOSER
-958
-85
-1100
-130
+558
+246
+770
+291
 Aggregation-Rules
 Aggregation-Rules
 "Unanimity" "Majority"
 0
 
 PLOT
-1111
-339
-1412
-489
+1147
+384
+1405
+534
 Knowlege Overview
 Tick
 Person*Month
@@ -834,19 +890,52 @@ PENS
 "Knowledge needed" 1.0 0 -16777216 true "" "plot sum [knowledge-needed] of project-connections with [owner = True]"
 
 SLIDER
-1016
-135
-1339
-168
+558
+111
+769
+144
 total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-12.0
+20.0
 1
 1
 per year
 HORIZONTAL
+
+SWITCH
+560
+342
+729
+375
+show-project-delay
+show-project-delay
+1
+1
+-1000
+
+SWITCH
+559
+380
+729
+413
+show-project-rejections
+show-project-rejections
+0
+1
+-1000
+
+SWITCH
+559
+417
+729
+450
+show-project-approvals
+show-project-approvals
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
