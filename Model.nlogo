@@ -286,7 +286,6 @@ to setup-municipality-groups
           ; add such row to the list of all possible groups/lists of municipalities that can be assigned
           ; a small offshore windpark project
           set offshore-small-groups lput offshore-small-group offshore-small-groups
-          show offshore-small-groups
         ]
 
         if item 0 data = "offshore-medium" [
@@ -347,6 +346,8 @@ to setup-municipality-groups
     set row row + 1 ; increment the row counter for the header skip
 
   ]; end of while there are rows
+  ;show offshore-small-groups
+  foreach offshore-small-groups [ x -> let offshore-small-group x show count offshore-small-group ask offshore-small-group [show name]]
 
   file-close ; make sure to close the file
 
