@@ -19,8 +19,6 @@ globals [
   receiving-municipalities
   responsible-municipality
 
-  n-projects
-
 ]
 
 
@@ -212,6 +210,7 @@ to setup-projects
     ; check if the row is empty or not
     if fileHeader <= row  [ ; we are past the header
 
+      let n-projects 0
       ; a higher amount of small projects can be carried out, while sites available for large plants are geographically limited.
       ; according to the configuration below, it is possible for each costal municipality (five in total) to conceive a small or medium offshore project as worthy of consideration
       ; small wind or solar projects are possible for each municipality which has the geographical space needed within their territory. Similarly for medium projects.
@@ -287,6 +286,7 @@ to setup-municipality-groups
           ; add such row to the list of all possible groups/lists of municipalities that can be assigned
           ; a small offshore windpark project
           set offshore-small-groups lput offshore-small-group offshore-small-groups
+          show offshore-small-groups
         ]
 
         if item 0 data = "offshore-medium" [
@@ -414,7 +414,7 @@ to external-factors
 
   ; Do timekeeping
   ; In case the year is not over yet
-  ifelse current-month < 12 [
+  ifelse current-month <= 12 [
     set current-month current-month + 1
   ]
   ; In case a new year starts
@@ -453,7 +453,6 @@ end
 
 to project-proposals-generation
   ; on average, every year a new project is proposed to and taken into account by a municipality in the region
-  ;set proposed-projects n-of (max list 0 random-normal 0.083 0.7) projects ; 0.083 is an approximation of 1/12
   set proposed-projects n-of random ((total-project-proposal-frequency + 1) / 12) projects with [hidden? = True]
   ask proposed-projects [
     ; Duplicate the project so that there are always sufficient projects
@@ -497,7 +496,7 @@ to project-proposals-generation
     create-project-connection-to responsible-municipality [  ; remember to use "create-project-connection agent" to create 1 link, while "create-project-connections agentset" to create multiple
 
       set knowledge-needed knowledge-needed-for-project
-      set priority 10 ; initial prio is 10 if a municipality is a project owner
+      set priority 10 ; initial priority is 10 if a municipality is a project owner
       set personnel 0 ; this should be the number of people a municipality wants to devote to this project, it will increase, decreasing the available personnel of the municipality
       set positively-affected True ; a municipality responsible is assumed to benefit from a project automatically
       set owner True ; set the municipality to the "responsible" municipality
@@ -672,7 +671,7 @@ to communicate-informally
     set own-projects lput [project-type] of other-end own-projects
   ]
 
-  ; selects all the municipalities that have any project connections which they own, work on and which are in the list of the municipalities own projects
+  ; selects all the municipalities that have any connections to projects that they own, on which they work, and which are in the list of the caller municipalities' own projects
   ask other municipalities with [any? my-project-connections with [owner AND personnel > 0 AND member? [project-type] of other-end own-projects]] [
 
     ; get current trust level between municipalities
@@ -704,15 +703,13 @@ end
 to update-layout
   ; Color based on different trust values
   ask municipality-connections [
-    ifelse trust = 0 [ hide-link ] [
-      show-link
-      set color (50 + trust / 20)
-    ]
+    set color (50 + trust / 20)
   ]
 
-  layout-spring municipalities municipality-connections with [trust > 50]  0.5 10 3
   layout-spring municipalities municipality-connections with [trust > 0]  0.5 20 3
-  layout-spring municipalities municipality-connections with [trust = 0]  0.5 70 3
+  layout-spring municipalities municipality-connections with [trust > 50]  0.5 10 3
+
+
 
   layout-spring projects project-connections 0.5 15 2
 
@@ -771,7 +768,7 @@ CHOOSER
 Political-Scenario
 Political-Scenario
 "Base Case" "Conservative push" "Green awareness" "Polarization" "Consolidation"
-2
+1
 
 OUTPUT
 918
@@ -1588,7 +1585,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.2-beta2
+NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
