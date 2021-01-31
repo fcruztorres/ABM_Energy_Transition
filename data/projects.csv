@@ -1,10 +1,8 @@
-type,cost,capacity-MW,code,description
-windpark-small-offshore,"52,480,000.00 €",40,1,small offshore wind park
-solarpark-small,"10,885,500.00 €",15,1,small solar photovoltaic power station
-windpark-small-onshore,"4,100,000.00 €",5,1,small onshore wind park
-windpark-medium-offshore,"164,000,000.00 €",125,2,medium offshore wind park
-solarpark-medium,"21,045,300.00 €",29,2,medium solar photovoltaic power station
-windpark-medium-onshore,"7,380,000.00 €",9,2,medium onshore wind park
-windpark-large-offshore,"695,360,000.00 €",530,3,large offshore wind park
-solarpark-large,"34,107,900.00 €",47,3,large solar photovoltaic power station
-windpark-large-onshore,"15,580,000.00 €",19,3,large onshore wind park
+type,capacity_[MW],lifespan_[y],threshold,n_samples,lead_time_[y],description
+solarpark-small,15,25,30,5,3,small solar photovoltaic power station
+windpark-small,5,25,30,5,5,small onshore wind park
+solarpark-medium,29,25,40,10,3.5,medium solar photovoltaic power station
+windpark-medium,9,25,40,10,5,medium onshore wind park
+solarpark-large,47,25,50,20,3.5,large solar photovoltaic power station
+windpark-large,19,25,50,20,5,large onshore wind park
+solarpark-urban,0.015,25,30,1,2.5,solar panels on urban roofs or parking spaces

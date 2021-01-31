@@ -38,11 +38,13 @@ municipalities-own [
 
 projects-own [
   active
-  cost
   installed-power
   project-type
   project-size
-
+  lifespan
+  acceptance-threshold
+  number-samples
+  implementation-time
 ]
 
 
@@ -211,22 +213,26 @@ to setup-projects
       ; a higher amount of small projects can be carried out, while sites available for large plants are geographically limited.
       ; according to the configuration below, it is possible for each costal municipality (five in total) to conceive a small or medium offshore project as worthy of consideration
       ; small wind or solar projects are possible for each municipality which has the geographical space needed within their territory. Similarly for medium projects.
-      if (item 0 data = "windpark-small-onshore") or (item 0 data = "solarpark-small") [set n-projects 9]
-      if (item 0 data = "windpark-small-offshore") or (item 0 data = "windpark-medium-offshore") or (item 0 data = "windpark-medium-onshore") or (item 0 data = "solarpark-medium") [set n-projects 5]
-      if (item 0 data = "windpark-large-offshore") or (item 0 data = "windpark-large-onshore") or (item 0 data = "solarpark-large") [set n-projects 2]
+      if (member? (item 0 data) ["solarpark-urban"]) [set n-projects 15]
+      if (member? (item 0 data) ["windpark-small" "solarpark-small"]) [set n-projects 9]
+      if (member? (item 0 data) ["windpark-medium" "solarpark-medium"]) [set n-projects 6]
+      if (member? (item 0 data) ["windpark-large" "solarpark-large"]) [set n-projects 3]
 
       ;create possible energy projects
       create-projects n-projects [
         ; Variables
+        set active False
         set project-type item 0 data
-        set cost item 1 data
-        set installed-power item 2 data
-        set project-size item 3 data
-        set shape project-type
+        set installed-power item 1 data
+        set lifespan item 2 data
+        set acceptance-threshold item 3 data
+        set number-samples item 4 data
+        set implementation-time item 5 data
 
         let x-cor random-xcor
         let y-cor random-ycor
 
+        set shape project-type
         set size 3
         set hidden? True
       ]
@@ -240,6 +246,7 @@ to setup-projects
   file-close ; make sure to close the file
 
 end
+
 
 to setup-municipality-groups
 
@@ -402,6 +409,8 @@ to project-proposals-generation
               set negatively-affected True
               set color 23
             ]
+
+            ifelse show-externalities [show-link ] [hide-link]
           ]
         ]
 
@@ -412,7 +421,7 @@ to project-proposals-generation
         ; create project connection to the owner
         create-project-connection-to responsible-municipality [
           set project-phase 0 ; to indicate that the project is proposed
-          set implementation-time-left 0 ; needs to be the lead-time from the csv
+          set implementation-time-left [implementation-time] of myself ; needs to be the lead-time from the csv
           set positively-affected True ; a municipality responsible is assumed to benefit from a project automatically
           set owner True ; set the municipality to the "responsible" municipality
           set shape "project-owner"
@@ -524,7 +533,7 @@ to manage-projects
      set implementation-time-left max list 0  (implementation-time-left - 1)
 
     ; Allocate the received knowledge from other municipalities
-    set implementation-time-left max list 0 (knowledge-needed - [knowledge-received] of myself / count projects-in-progress)
+    set implementation-time-left max list 0 (implementation-time-left - [knowledge-received] of myself / count projects-in-progress)
 
   ]
 
@@ -547,7 +556,7 @@ to communicate-informally
   ]
 
   ; selects all the municipalities that have any connections to projects that they own, on which they work, and which are in the list of the caller municipalities' own projects
-  ask other municipalities with [any? my-project-connections with [owner AND personnel > 0 AND member? [project-type] of other-end own-projects]] [
+  ask other municipalities with [any? my-project-connections with [owner AND project-phase > 0 AND member? [project-type] of other-end own-projects]] [
 
     ; get current trust level between municipalities
     let current-trust-level [trust] of municipality-connection-with myself
@@ -587,7 +596,7 @@ to conduct-meeting
 
     ; if any of the members of the search area has an active project, share knowledge with the others
     if any? (item 2 search-area) with [any? my-project-connections with [[active] of other-end]] [
-      show (item 2 search-area) with [any? my-project-connections with [[active] of other-end]]
+      ;show (item 2 search-area) with [any? my-project-connections with [[active] of other-end]]
 
     ]
   ]
@@ -658,27 +667,27 @@ NIL
 1
 
 CHOOSER
-560
-249
-771
-294
+807
+53
+1090
+98
 Political-Scenario
 Political-Scenario
 "Base Case" "Conservative push" "Green awareness" "Polarization" "Consolidation"
 1
 
 OUTPUT
-918
-25
-1402
+562
 207
+1098
+389
 13
 
 MONITOR
-797
-25
-854
-70
+1110
+215
+1167
+260
 Year
 current-year
 17
@@ -686,10 +695,10 @@ current-year
 11
 
 MONITOR
-856
-25
-913
-70
+1169
+215
+1226
+260
 Month
 current-month
 17
@@ -697,10 +706,10 @@ current-month
 11
 
 PLOT
-1203
-213
-1403
-377
+1103
+397
+1303
+561
 Political Overview
 Green Energy Openness
 Count
@@ -732,10 +741,10 @@ NIL
 1
 
 PLOT
-899
-213
-1198
-378
+768
+397
+1096
+562
 Projects overview
 Tick
 Number Projects
@@ -750,44 +759,26 @@ PENS
 "Accepted by municipalities" 1.0 0 -16777216 true "" "plot count project-connections with [owner = True]"
 "Projects implemented" 1.0 0 -14439633 true "" "plot count projects with [active = True]"
 
-PLOT
-1065
-384
-1405
-534
-Knowlege Overview
-Tick
-Person*Month
-0.0
-10.0
-0.0
-10.0
-true
-true
-"" ""
-PENS
-"Knowledge needed" 1.0 0 -16777216 true "" "plot sum [knowledge-needed] of project-connections with [owner = True AND personnel > 0]"
-
 SLIDER
-558
-111
-841
-144
+807
+109
+1090
+142
 total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-12.0
+13.0
 1
 1
 per year
 HORIZONTAL
 
 SWITCH
-562
-338
-773
-371
+1151
+89
+1362
+122
 show-municipal-decisions
 show-municipal-decisions
 1
@@ -795,10 +786,10 @@ show-municipal-decisions
 -1000
 
 PLOT
-859
-384
-1059
-534
+563
+397
+763
+562
 Trust
 Tick
 Trust
@@ -813,10 +804,10 @@ PENS
 "Trust" 1.0 0 -16777216 true "" "plot mean [trust] of municipality-connections"
 
 SLIDER
-559
-155
-844
-188
+808
+153
+1093
+186
 administrative-network-meetings
 administrative-network-meetings
 0
@@ -828,13 +819,54 @@ per year
 HORIZONTAL
 
 SWITCH
-561
-301
-773
-334
+1150
+52
+1362
+85
 show-regional-decisions
 show-regional-decisions
 0
+1
+-1000
+
+TEXTBOX
+805
+27
+1116
+55
+Levers -------------------------------------------
+11
+0.0
+1
+
+TEXTBOX
+1147
+22
+1418
+64
+Visuals -----------------------------------
+11
+0.0
+1
+
+TEXTBOX
+1116
+49
+1131
+189
+|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n
+11
+0.0
+1
+
+SWITCH
+1152
+129
+1362
+162
+show-externalities
+show-externalities
+1
 1
 -1000
 
@@ -1115,34 +1147,6 @@ Polygon -1 true true 195 285 210 285 210 240 240 210 195 210
 Polygon -7500403 true false 276 85 285 105 302 99 294 83
 Polygon -7500403 true false 219 85 210 105 193 99 201 83
 
-solar-generating-district
-false
-2
-Rectangle -7500403 true false 104 195 270 270
-Rectangle -16777216 true false 180 225 195 240
-Rectangle -16777216 true false 150 225 165 240
-Rectangle -16777216 true false 120 225 135 240
-Line -7500403 false 90 135 90 195
-Rectangle -7500403 true false 14 105 90 210
-Polygon -13345367 true false 0 90 30 120 105 120 75 90
-Rectangle -13345367 true false 45 225 45 225
-Polygon -13345367 true false 150 180 180 210 225 210 195 180
-Polygon -13345367 true false 90 180 120 210 165 210 135 180
-Polygon -13345367 true false 210 180 240 210 285 210 255 180
-Line -16777216 false 15 105 90 105
-Line -16777216 false 105 195 270 195
-Line -16777216 false 240 180 270 210
-Line -16777216 false 180 180 210 210
-Line -16777216 false 120 180 150 210
-Rectangle -16777216 true false 30 135 45 150
-Rectangle -16777216 true false 60 135 75 150
-Rectangle -16777216 true false 30 165 45 180
-Rectangle -16777216 true false 60 165 75 180
-Rectangle -16777216 true false 210 225 225 240
-Rectangle -16777216 true false 240 225 255 240
-Line -16777216 false 60 90 90 120
-Line -16777216 false 30 90 60 120
-
 solarpark-large
 false
 2
@@ -1248,6 +1252,34 @@ Line -16777216 false 240 180 270 210
 Line -16777216 false 180 180 210 210
 Line -16777216 false 120 180 150 210
 
+solarpark-urban
+false
+2
+Rectangle -7500403 true false 104 195 270 270
+Rectangle -16777216 true false 180 225 195 240
+Rectangle -16777216 true false 150 225 165 240
+Rectangle -16777216 true false 120 225 135 240
+Line -7500403 false 90 135 90 195
+Rectangle -7500403 true false 14 105 90 210
+Polygon -13345367 true false 0 90 30 120 105 120 75 90
+Rectangle -13345367 true false 45 225 45 225
+Polygon -13345367 true false 150 180 180 210 225 210 195 180
+Polygon -13345367 true false 90 180 120 210 165 210 135 180
+Polygon -13345367 true false 210 180 240 210 285 210 255 180
+Line -16777216 false 15 105 90 105
+Line -16777216 false 105 195 270 195
+Line -16777216 false 240 180 270 210
+Line -16777216 false 180 180 210 210
+Line -16777216 false 120 180 150 210
+Rectangle -16777216 true false 30 135 45 150
+Rectangle -16777216 true false 60 135 75 150
+Rectangle -16777216 true false 30 165 45 180
+Rectangle -16777216 true false 60 165 75 180
+Rectangle -16777216 true false 210 225 225 240
+Rectangle -16777216 true false 240 225 255 240
+Line -16777216 false 60 90 90 120
+Line -16777216 false 30 90 60 120
+
 square
 false
 0
@@ -1332,28 +1364,7 @@ Line -7500403 true 40 84 269 221
 Line -7500403 true 40 216 269 79
 Line -7500403 true 84 40 221 269
 
-windpark-large-offshore
-false
-2
-Rectangle -13345367 true false 30 270 300 285
-Rectangle -13345367 true false 15 255 285 270
-Rectangle -13345367 true false 105 135 135 270
-Rectangle -7500403 true false 105 75 135 75
-Polygon -7500403 true false 75 195 75 225 120 165 165 105 165 75
-Polygon -7500403 true false 165 195 195 195 135 150 75 105 45 105
-Circle -2674135 true false 105 135 30
-Polygon -13345367 true false 120 135 105 150 120 165 180 150
-Rectangle -13345367 true false 210 105 240 255
-Polygon -7500403 true false 180 165 180 195 225 135 270 75 270 45
-Polygon -7500403 true false 270 165 300 165 240 120 180 75 150 75
-Circle -2674135 true false 210 105 30
-Polygon -13345367 true false 225 105 210 120 225 135 285 120
-Rectangle -13791810 true false 60 270 210 285
-Rectangle -13791810 true false 15 240 165 255
-Rectangle -13345367 true false 0 285 345 300
-Rectangle -13791810 true false 135 285 285 300
-
-windpark-large-onshore
+windpark-large
 false
 2
 Rectangle -13345367 true false 105 135 135 270
@@ -1368,28 +1379,7 @@ Polygon -7500403 true false 270 165 300 165 240 120 180 75 150 75
 Circle -2674135 true false 210 105 30
 Polygon -13345367 true false 225 105 210 120 225 135 285 120
 
-windpark-medium-offshore
-false
-2
-Rectangle -13345367 true false 30 270 300 285
-Rectangle -13345367 true false 15 255 285 270
-Rectangle -13345367 true false 105 135 135 270
-Rectangle -7500403 true false 105 75 135 75
-Polygon -7500403 true false 75 195 75 225 120 165 165 105 165 75
-Polygon -7500403 true false 165 195 195 195 135 150 75 105 45 105
-Circle -2674135 true false 105 135 30
-Polygon -13345367 true false 120 135 105 150 120 165 180 150
-Rectangle -13345367 true false 210 180 240 255
-Polygon -7500403 true false 195 210 195 240 195 240 255 165 255 135
-Polygon -7500403 true false 255 225 285 225 195 165 195 165 165 165
-Circle -2674135 true false 210 180 30
-Polygon -13345367 true false 225 180 210 195 225 210 285 195
-Rectangle -13791810 true false 60 270 210 285
-Rectangle -13791810 true false 15 240 165 255
-Rectangle -13345367 true false 0 285 345 300
-Rectangle -13791810 true false 135 285 285 300
-
-windpark-medium-onshore
+windpark-medium
 false
 2
 Rectangle -13345367 true false 105 135 135 270
@@ -1404,23 +1394,7 @@ Polygon -7500403 true false 255 195 285 195 195 135 195 135 165 135
 Circle -2674135 true false 210 150 30
 Polygon -13345367 true false 225 150 210 165 225 180 285 165
 
-windpark-small-offshore
-false
-2
-Rectangle -13345367 true false 30 270 300 285
-Rectangle -13345367 true false 15 255 285 270
-Rectangle -13345367 true false 105 135 135 270
-Rectangle -7500403 true false 105 75 135 75
-Polygon -7500403 true false 75 195 75 225 120 165 165 105 165 75
-Polygon -7500403 true false 165 195 195 195 135 150 75 105 45 105
-Circle -2674135 true false 105 135 30
-Polygon -13345367 true false 120 135 105 150 120 165 180 150
-Rectangle -13791810 true false 60 270 210 285
-Rectangle -13791810 true false 15 240 165 255
-Rectangle -13345367 true false 0 285 345 300
-Rectangle -13791810 true false 135 285 285 300
-
-windpark-small-onshore
+windpark-small
 false
 2
 Rectangle -13345367 true false 105 135 135 270
