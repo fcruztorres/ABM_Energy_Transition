@@ -29,13 +29,8 @@ breed [projects project]
 municipalities-own [
   name
   inhabitants
-  yearly-budget
-  allocated-funds
-  available-personnel
   green-energy-openness
   political-variety
-  city-council-size
-  knowledge-received
   number-informal-meetings
 ]
 
@@ -114,38 +109,13 @@ to setup-municipalities
         ; Variables
         set name item 0 data
         set inhabitants item 1 data
-        set yearly-budget item 2 data
-        set available-personnel item 3 data
-        set green-energy-openness item 4 data
-        set political-variety item 5 data
-        set allocated-funds 0
+        set green-energy-openness item 2 data
+        set political-variety item 3 data
         set number-informal-meetings 0
+
         set label name
         set color blue
         set shape "circle"
-
-        ; Determine number of city council seats (source: https://nl.wikipedia.org/wiki/Gemeenteraad#Nederland)
-        if inhabitants > 0 [set city-council-size 9]
-        if inhabitants > 3000 [set city-council-size 11]
-        if inhabitants > 6000 [set city-council-size 13]
-        if inhabitants > 10000 [set city-council-size 15]
-        if inhabitants > 15000 [set city-council-size 17]
-        if inhabitants > 20000 [set city-council-size 19]
-        if inhabitants > 25000 [set city-council-size 21]
-        if inhabitants > 30000 [set city-council-size 23]
-        if inhabitants > 35000 [set city-council-size 25]
-        if inhabitants > 40000 [set city-council-size 27]
-        if inhabitants > 45000 [set city-council-size 29]
-        if inhabitants > 50000 [set city-council-size 31]
-        if inhabitants > 60000 [set city-council-size 33]
-        if inhabitants > 70000 [set city-council-size 35]
-        if inhabitants > 80000 [set city-council-size 37]
-        if inhabitants > 100000 [set city-council-size 39]
-        if inhabitants > 200000 [set city-council-size 45]
-
-        ;preliminary personnel setting based on inhabitants
-        set available-personnel round (inhabitants / 50000 * 2)
-        set knowledge-received 0
 
         ; municipalities are generated in the upper part of the screen
         let x-cor random-xcor
@@ -155,7 +125,7 @@ to setup-municipalities
         setxy x-cor y-cor
 
 
-        set size (0.3 * log inhabitants 10)
+        set size (0.5 * log inhabitants 10)
       ]
     ];end past header
 
@@ -184,8 +154,8 @@ to setup-informal-network
     ]
   ]
 
-  repeat 20 [
-    update-layout
+  repeat 50 [
+    update-layout True
   ]
 
 
@@ -298,7 +268,7 @@ end
 to go
 
   ; stop simulation if year 2051 is reached
-  if (current-year > 2050)[ stop ]
+  if (current-year > end-year)[ stop ]
 
   ; Handle the external factors
   external-factors
@@ -323,7 +293,7 @@ to go
   ]
 
   ; Do visuals
-  update-layout
+  update-layout False
 
   tick
 
@@ -349,10 +319,15 @@ to external-factors
     set meetings-conducted 0
     set projects-proposed 0
 
+    ; reset the number of informal meetings
     ask municipalities [
       set number-informal-meetings 0
     ]
 
+    ; decrease the lifespan of all active projects by one year
+    ask projects with [active] [
+      set lifespan max (list 0 (lifespan - 1))
+    ]
   ]
 
 
@@ -368,7 +343,7 @@ to external-factors
 
   ]
 
-
+  ; Propose projects
   project-proposals-generation
 
 
@@ -377,7 +352,7 @@ end
 
 to project-proposals-generation
   ; on average, every year a new project is proposed to and taken into account by a municipality in the region
-  set proposed-projects n-of (round (total-project-proposal-frequency - projects-proposed) / (13 - current-month)) projects with [hidden? = True]
+  set proposed-projects n-of (round (total-project-proposal-frequency - projects-proposed) / (13 - current-month)) projects with [not any? my-project-connections]
   ask proposed-projects [
     ; Duplicate the project so that there are always sufficient projects
     hatch 1 [
@@ -397,6 +372,22 @@ to project-proposals-generation
       if member? project-type (item 1 search-area) [
         ; indicate that a suitable search area is found
         set search-area-selected True
+
+         ; pick one municipality out of the search area as a project owner
+        let responsible-municipality one-of item 2 search-area
+
+        ; create project connection to the owner
+        create-project-connection-to responsible-municipality [
+          set project-phase 0 ; to indicate that the project is proposed
+          set implementation-time-left [implementation-time] of myself ; needs to be the lead-time from the csv
+          set positively-affected True ; a municipality responsible is assumed to benefit from a project automatically
+          set owner True ; set the municipality to the "responsible" municipality
+          set shape "project-owner"
+
+          if not show-projects [hide-link]
+
+        ]
+
 
         ; Only create externalities whenever the search area is not an urban area
         if item 0 search-area != "Urban area" [
@@ -423,27 +414,13 @@ to project-proposals-generation
             ifelse show-externalities [show-link ] [hide-link]
           ]
         ]
-
-
-        ; pick one municipality out of the search area as a project owner
-        let responsible-municipality one-of item 2 search-area
-
-        ; create project connection to the owner
-        create-project-connection-to responsible-municipality [
-          set project-phase 0 ; to indicate that the project is proposed
-          set implementation-time-left [implementation-time] of myself ; needs to be the lead-time from the csv
-          set positively-affected True ; a municipality responsible is assumed to benefit from a project automatically
-          set owner True ; set the municipality to the "responsible" municipality
-          set shape "project-owner"
-
-        ]
       ]
     ]
     ; once projects are proposed to and taken into account by a municipality, they are shown and associated with the municipality which received it
-    set hidden? False
+    if show-projects [
+      set hidden? False
 
-
-
+    ]
   ]
 
 
@@ -456,9 +433,6 @@ to manage-projects
   let new-projects my-project-connections with [project-phase = 0 AND owner = True]
 
   if any? new-projects [
-
-    ; Get the number of votes needed depending on the aggregation rules
-    let number-votes-needed round (0.5 * city-council-size)
 
     ; Iterate over the new projects proposed
     ask new-projects [
@@ -491,27 +465,35 @@ to manage-projects
 
         ; If accepted, the trust towards a municipality with negative externalities is reduced
         let negatively-affected-municipalities turtle-set nobody
+        let positively-affected-municipalities turtle-set nobody
 
         ask [link-neighbors] of project-to-discuss [
           if [negatively-affected = True] of link-with project-to-discuss [
             set negatively-affected-municipalities (turtle-set negatively-affected-municipalities self)
           ]
+          if [positively-affected = True] of link-with project-to-discuss [
+            set positively-affected-municipalities (turtle-set positively-affected-municipalities self)
+          ]
         ]
-;
-;        if any? negatively-affected-municipalities [
-;          print (word "Several municipalities are negatively affected by the project of " [name] of myself ":")
-;        ]
 
         let project-manager myself
 
+        ; Decrease in trust with negatively affected municipalities
         ask negatively-affected-municipalities [
           ask municipality-connection-with project-manager [
             ;print (word "Trust decreased between " [name] of project-manager " (project manager) and " [name] of myself)
-            set trust trust * 0.8 ; 20% descrease in trust
+            set trust trust * 0.95 ; 5% descrease in trust
           ]
-
         ]
 
+        ; Increase in trust with positively affected municipalities
+        ask positively-affected-municipalities [
+          if is-link? municipality-connection-with project-manager [ ; check, because project owner also has positive externalities
+            ask municipality-connection-with project-manager [
+              set trust min (list 100 (trust * 1.025)) ; 2% increase in trust
+            ]
+          ]
+        ]
 
       ][
         ; in case a project is rejected
@@ -524,17 +506,19 @@ to manage-projects
     ]
   ]
 
-  ; Assign the available personnal to the projects relative to their size in GwH (larger projects are assigned more people)
+  ; Work on the projects which are in phase 1 (permission phase)
   let projects-in-progress my-project-connections with [project-phase = 1 AND owner = True]
+  let active-projects (turtle-set [other-end] of my-project-connections with [project-phase = 2 AND owner = True])
 
 
-  ; Gain project-specific knowledge based on personell assigned to the projects
-
+  ; Gain project-specific knowledge and decrease the implementation time
   ask projects-in-progress [
-    set implementation-time-left max list 0  (implementation-time-left - 1)
 
-    ; Allocate the received knowledge from other municipalities
-    set implementation-time-left max list 0 (implementation-time-left - [knowledge-received] of myself / count projects-in-progress)
+    ; Figure out if there are already active projects of the same type. If yes, gain 5% efficiency for each project that has already been successfully implemented
+    let own-project-type [project-type] of other-end
+    let experience-factor ((count active-projects with [project-type = own-project-type]) / 20)
+
+    set implementation-time-left max list 0  (implementation-time-left - (1 + experience-factor))
 
     ; If no implementation time is left, set the other end to active
     if implementation-time-left = 0 [
@@ -543,13 +527,17 @@ to manage-projects
 
       ; set the project to active
       ask other-end [set active True]
-
     ]
 
   ]
 
-  ; Set received knowledge back to 0
-  set knowledge-received 0
+
+  ; Decomission projects which lifespan has elapsed
+  ask my-project-connections with [project-phase = 2 AND owner = True AND [lifespan] of other-end = 0] [
+    ask other-end [
+      set active False
+    ]
+  ]
 
 
 
@@ -562,31 +550,41 @@ to communicate-informally
 
   ; Get a list of own projects that are currently managed
   let own-projects []
-  ask my-project-connections with [owner AND project-phase > 0 AND [project-type] of other-end != "solarpark-urban"]  [
+  ask my-project-connections with [owner AND project-phase = 1 AND [project-type] of other-end != "solarpark-urban"]  [
     set own-projects lput [project-type] of other-end own-projects
   ]
 
   ; Get municipality's friends, select the 3 best friends
   let friend-connections max-n-of 3 my-municipality-connections [trust]
-  let friends turtle-set [other-end] of friend-connections
+  let friends (turtle-set [other-end] of friend-connections) with [any? my-project-connections with [owner AND project-phase = 2 AND member? [project-type] of other-end own-projects]]
 
-  let number-meetings-this-month 0
+  ; Check if there are any friends that have already worked on a project
+  if any? friends [
 
+    ; Communicate informally with close friends
+    repeat round (informal-meetings-frequency - number-informal-meetings) / (13 - current-month) [
 
-  repeat round (informal-meetings-frequency - number-informal-meetings) / (13 - current-month) [
+      ; Select a close friend
+      let close-friend one-of friends
 
-    set number-informal-meetings number-informal-meetings + 1
+      set number-informal-meetings number-informal-meetings + 1
 
+      let percentage-shared ([trust] of municipality-connection-with close-friend) / 100
 
-;    ask friends with [any? my-project-connections with [owner AND project-phase = 2 AND member? [project-type] of other-end own-projects]][
-;
-;      show (word "I " [name] of myself " have a friend with the same project as me: " name)
-;
-;
-;    ]
+      ask one-of my-project-connections with [owner AND project-phase = 1][
+        set implementation-time-left implementation-time-left - percentage-shared
+      ]
 
+      ; increase trust between the two municipalities
+      ask municipality-connection-with close-friend [
+        set trust min (list 100 (trust * 1.01)) ; increase by 1%
+      ]
 
+    ]
   ]
+
+
+
 
 
 
@@ -616,19 +614,50 @@ end
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;; DISPLAY FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;
-to update-layout
-  ; Color based on different trust values
-  ask municipality-connections [
-    set color (50 + trust / 20)
+to update-layout [first-time]
+
+
+  ifelse show-municipal-network OR first-time [
+
+    ; Color based on different trust values
+    ask municipality-connections [
+      show-link
+      set color (50 + trust / 20)
+    ]
+
+    layout-spring municipalities municipality-connections with [trust > 0]  0.7 30 3
+    layout-spring municipalities municipality-connections with [trust > 50]  0.7 20 3
+  ] [
+    ask municipality-connections [hide-link]
   ]
 
-  layout-spring municipalities municipality-connections with [trust > 0]  0.5 20 3
-  layout-spring municipalities municipality-connections with [trust > 50]  0.5 10 3
-
-  layout-spring projects project-connections 0.5 15 2
+  layout-spring projects project-connections with [owner] 0.5 2 2
 
 
 end
+
+;;;;;;;;;;;;;;;;;;;;;;;; REPORTER FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+to-report current-renewable-production [project-category]
+  if project-category = "wind" [
+    report sum [installed-power] of projects with [active AND member? project-type (list "windpark-small" "windpark-medium" "windpark-large") ]
+  ]
+
+  if project-category = "solar" [
+    report sum [installed-power] of projects with [active AND member? project-type (list "solarpark-small" "solarpark-medium" "solarpark-large") ]
+  ]
+
+  if project-category = "urban" [
+    report sum [installed-power] of projects with [active AND project-type = "solarpark-urban" ]
+  ]
+
+
+end
+
+
+
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 10
@@ -682,7 +711,7 @@ CHOOSER
 Political-Scenario
 Political-Scenario
 "Base Case" "Conservative push" "Green awareness" "Polarization" "Consolidation"
-0
+2
 
 OUTPUT
 562
@@ -692,10 +721,10 @@ OUTPUT
 13
 
 MONITOR
-1110
-215
-1167
-260
+561
+158
+618
+203
 Year
 current-year
 17
@@ -703,10 +732,10 @@ current-year
 11
 
 MONITOR
-1169
-215
-1226
-260
+620
+158
+677
+203
 Month
 current-month
 17
@@ -714,10 +743,10 @@ current-month
 11
 
 PLOT
-1103
-397
-1303
-561
+1106
+207
+1274
+388
 Political Overview
 Green Energy Openness
 Count
@@ -765,7 +794,7 @@ true
 "" ""
 PENS
 "Accepted by municipalities" 1.0 0 -16777216 true "" "plot count project-connections with [owner = True]"
-"Projects implemented" 1.0 0 -14439633 true "" "plot count projects with [active = True]"
+"Active projects" 1.0 0 -14439633 true "" "plot count projects with [active = True]"
 
 SLIDER
 808
@@ -776,17 +805,17 @@ total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-11.0
+15.0
 1
 1
 per year
 HORIZONTAL
 
 SWITCH
-1151
-89
-1362
-122
+1140
+83
+1329
+116
 show-municipal-decisions
 show-municipal-decisions
 1
@@ -827,10 +856,10 @@ per year
 HORIZONTAL
 
 SWITCH
-1150
-52
-1362
-85
+1140
+46
+1331
+79
 show-regional-decisions
 show-regional-decisions
 1
@@ -868,10 +897,10 @@ TEXTBOX
 1
 
 SWITCH
-1152
-129
-1362
-162
+1279
+121
+1433
+154
 show-externalities
 show-externalities
 1
@@ -887,10 +916,67 @@ informal-meetings-frequency
 informal-meetings-frequency
 0
 50
-12.0
+25.0
 1
 1
 per year
+HORIZONTAL
+
+SWITCH
+1142
+160
+1330
+193
+show-municipal-network
+show-municipal-network
+1
+1
+-1000
+
+SWITCH
+1142
+121
+1274
+154
+show-projects
+show-projects
+0
+1
+-1000
+
+PLOT
+1105
+397
+1391
+562
+MW implemented
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"Wind" 1.0 0 -11221820 true "" "plot current-renewable-production \"wind\""
+"Solar" 1.0 0 -1184463 true "" "plot current-renewable-production \"solar\""
+"Urban" 1.0 0 -7500403 true "" "plot current-renewable-production \"urban\""
+
+SLIDER
+561
+104
+733
+137
+end-year
+end-year
+2030
+2100
+2050.0
+5
+1
+NIL
 HORIZONTAL
 
 @#$#@#$#@
@@ -1465,7 +1551,7 @@ project-externality
 link direction
 true
 0
-Circle -7500403 true true 96 96 108
+Circle -7500403 true true 135 135 30
 
 project-owner
 0.0
@@ -1475,7 +1561,7 @@ project-owner
 link direction
 true
 0
-Circle -7500403 true true 96 96 108
+Circle -7500403 true true 135 135 30
 @#$#@#$#@
 0
 @#$#@#$#@
