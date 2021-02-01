@@ -818,7 +818,7 @@ SWITCH
 116
 show-municipal-decisions
 show-municipal-decisions
-1
+0
 1
 -1000
 
