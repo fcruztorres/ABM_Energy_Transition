@@ -15,6 +15,8 @@ globals [
   search-areas
   meetings-conducted
 
+  projects-proposed
+
 ]
 
 
@@ -34,6 +36,7 @@ municipalities-own [
   political-variety
   city-council-size
   knowledge-received
+  number-informal-meetings
 ]
 
 projects-own [
@@ -72,6 +75,7 @@ to setup
   set current-month 1
   set current-year 2021
   set meetings-conducted 0
+  set projects-proposed 0
 
   setup-municipalities
   setup-informal-network
@@ -115,6 +119,7 @@ to setup-municipalities
         set green-energy-openness item 4 data
         set political-variety item 5 data
         set allocated-funds 0
+        set number-informal-meetings 0
         set label name
         set color blue
         set shape "circle"
@@ -227,7 +232,7 @@ to setup-projects
         set lifespan item 2 data
         set acceptance-threshold item 3 data
         set number-samples item 4 data
-        set implementation-time item 5 data
+        set implementation-time (item 5 data) * 12 ; ticks
 
         let x-cor random-xcor
         let y-cor random-ycor
@@ -342,6 +347,11 @@ to external-factors
     set current-month 1
     set current-year current-year + 1
     set meetings-conducted 0
+    set projects-proposed 0
+
+    ask municipalities [
+      set number-informal-meetings 0
+    ]
 
   ]
 
@@ -367,7 +377,7 @@ end
 
 to project-proposals-generation
   ; on average, every year a new project is proposed to and taken into account by a municipality in the region
-  set proposed-projects n-of (total-project-proposal-frequency / 12) projects with [hidden? = True]
+  set proposed-projects n-of (round (total-project-proposal-frequency - projects-proposed) / (13 - current-month)) projects with [hidden? = True]
   ask proposed-projects [
     ; Duplicate the project so that there are always sufficient projects
     hatch 1 [
@@ -476,7 +486,7 @@ to manage-projects
           output-print (word "PROJECT ACCEPTED: " [project-type] of project-to-discuss " in " [name] of myself )
         ]
 
-        set project-phase 1 ; to indicate that the project is in debate
+        set project-phase 1 ; to indicate that the project is in the permission procedure
 
 
         ; If accepted, the trust towards a municipality with negative externalities is reduced
@@ -515,18 +525,26 @@ to manage-projects
   ]
 
   ; Assign the available personnal to the projects relative to their size in GwH (larger projects are assigned more people)
-  let projects-in-progress my-project-connections with [project-phase > 0 AND owner = True]
+  let projects-in-progress my-project-connections with [project-phase = 1 AND owner = True]
 
 
   ; Gain project-specific knowledge based on personell assigned to the projects
 
   ask projects-in-progress [
-     set implementation-time-left max list 0  (implementation-time-left - 1)
+    set implementation-time-left max list 0  (implementation-time-left - 1)
 
     ; Allocate the received knowledge from other municipalities
     set implementation-time-left max list 0 (implementation-time-left - [knowledge-received] of myself / count projects-in-progress)
 
+    ; If no implementation time is left, set the other end to active
+    if implementation-time-left = 0 [
+      ; set the project phase to implementatino
+      set project-phase 2
 
+      ; set the project to active
+      ask other-end [set active True]
+
+    ]
 
   ]
 
@@ -544,27 +562,32 @@ to communicate-informally
 
   ; Get a list of own projects that are currently managed
   let own-projects []
-  ask my-project-connections with [owner]  [
+  ask my-project-connections with [owner AND project-phase > 0 AND [project-type] of other-end != "solarpark-urban"]  [
     set own-projects lput [project-type] of other-end own-projects
   ]
 
-  ; selects all the municipalities that have any connections to projects that they own, on which they work, and which are in the list of the caller municipalities' own projects
-  ask other municipalities with [any? my-project-connections with [owner AND project-phase > 0 AND member? [project-type] of other-end own-projects]] [
+  ; Get municipality's friends, select the 3 best friends
+  let friend-connections max-n-of 3 my-municipality-connections [trust]
+  let friends turtle-set [other-end] of friend-connections
 
-    ; get current trust level between municipalities
-    let current-trust-level [trust] of municipality-connection-with myself
+  let number-meetings-this-month 0
 
-    ; The more trust there is, the higher the likelihood of information sharing
-    if random 100 < current-trust-level [
 
-      ; Knowledge that is shared depends on trust and the amount of available personal
-      set knowledge-received [available-personnel] of myself * (current-trust-level / 100)
+  repeat round (informal-meetings-frequency - number-informal-meetings) / (13 - current-month) [
 
-      ask municipality-connection-with myself [
-        set trust min list 100 (trust * 1.01)
-      ]
-    ]
+    set number-informal-meetings number-informal-meetings + 1
+
+
+;    ask friends with [any? my-project-connections with [owner AND project-phase = 2 AND member? [project-type] of other-end own-projects]][
+;
+;      show (word "I " [name] of myself " have a friend with the same project as me: " name)
+;
+;
+;    ]
+
+
   ]
+
 
 
 end
@@ -601,8 +624,6 @@ to update-layout
 
   layout-spring municipalities municipality-connections with [trust > 0]  0.5 20 3
   layout-spring municipalities municipality-connections with [trust > 50]  0.5 10 3
-
-
 
   layout-spring projects project-connections 0.5 15 2
 
@@ -654,14 +675,14 @@ NIL
 1
 
 CHOOSER
-807
-53
-1090
-98
+808
+44
+1091
+89
 Political-Scenario
 Political-Scenario
 "Base Case" "Conservative push" "Green awareness" "Polarization" "Consolidation"
-1
+0
 
 OUTPUT
 562
@@ -747,15 +768,15 @@ PENS
 "Projects implemented" 1.0 0 -14439633 true "" "plot count projects with [active = True]"
 
 SLIDER
-807
-109
-1090
-142
+808
+92
+1091
+125
 total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-13.0
+11.0
 1
 1
 per year
@@ -791,10 +812,10 @@ PENS
 "Trust" 1.0 0 -16777216 true "" "plot mean [trust] of municipality-connections"
 
 SLIDER
-808
-153
-1093
-186
+807
+128
+1092
+161
 administrative-network-meetings
 administrative-network-meetings
 0
@@ -812,7 +833,7 @@ SWITCH
 85
 show-regional-decisions
 show-regional-decisions
-0
+1
 1
 -1000
 
@@ -856,6 +877,21 @@ show-externalities
 1
 1
 -1000
+
+SLIDER
+808
+164
+1094
+197
+informal-meetings-frequency
+informal-meetings-frequency
+0
+50
+12.0
+1
+1
+per year
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
