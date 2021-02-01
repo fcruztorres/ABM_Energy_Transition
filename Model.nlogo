@@ -463,30 +463,21 @@ to manage-projects
         stop
       ]
 
-      ; Threshold to vote yes depends on the size of the project
-      let threshold 0
-      if [project-size] of project-to-discuss = 1 [set threshold 30]
-      if [project-size] of project-to-discuss = 2 [set threshold 40]
-      if [project-size] of project-to-discuss = 3 [set threshold 50]
+      let vote-list []
 
-      let number-pro-votes 0
-
-      repeat [city-council-size] of myself [
-        if random-normal [green-energy-openness] of myself [political-variety] of myself > threshold [set number-pro-votes number-pro-votes + 1]
+      repeat [number-samples] of project-to-discuss [
+        set vote-list lput (random-normal [green-energy-openness] of myself [political-variety] of myself) vote-list
       ]
 
       ; Check for vote results
-      ifelse number-pro-votes >= number-votes-needed [
+      ifelse mean vote-list >= [acceptance-threshold] of project-to-discuss [
         ; in case a project is accepted, assign one person working on the project
         if show-municipal-decisions [
-          output-print (word "PROJECT ACCEPTED: " [project-type] of project-to-discuss " in " [name] of myself " (" number-pro-votes " out of " number-votes-needed " votes needed)")
+          output-print (word "PROJECT ACCEPTED: " [project-type] of project-to-discuss " in " [name] of myself )
         ]
 
         set project-phase 1 ; to indicate that the project is in debate
 
-
-        ; EXPERIMENTAL: Set project to active
-        ask project-to-discuss [set active True]
 
         ; If accepted, the trust towards a municipality with negative externalities is reduced
         let negatively-affected-municipalities turtle-set nobody
@@ -516,7 +507,7 @@ to manage-projects
         ; in case a project is rejected
 
         if show-municipal-decisions [
-          output-print (word "PROJECT REJECTED: " [project-type] of project-to-discuss " in " [name] of myself " (" number-pro-votes " out of " number-votes-needed " votes needed)")
+          output-print (word "PROJECT REJECTED: " [project-type] of project-to-discuss " in " [name] of myself)
         ]
         ask project-to-discuss [die]
       ]
@@ -534,6 +525,8 @@ to manage-projects
 
     ; Allocate the received knowledge from other municipalities
     set implementation-time-left max list 0 (implementation-time-left - [knowledge-received] of myself / count projects-in-progress)
+
+
 
   ]
 
@@ -572,12 +565,6 @@ to communicate-informally
       ]
     ]
   ]
-
-
-  ; Form coalitions with other actors, that are also negatively or positively affected
-
-
-
 
 
 end
