@@ -1,24 +1,24 @@
-name,inhabitants,allocated funds,available personnel,green energy openness,political variety
-Albrandswaard,25271,25271,0,0,13
-Barendrecht,48673,0,0,20,14
-Brielle,17181,441000,0,24,29
-Capelle aan den IJssel,66818,2239000,0,23,15
-Delft,101030,3050000,0,37,10
-s-Gravenhage,544766,13072000,0,29,4
-Hellevoetsluis,38778,16000,0,21,15
-Krimpen aan den IJssel,29120,309000,0,13,31
-Lansingerland,61601,0,0,20,15
-Leidschendam-Voorburg,107905,2235000,0,32,6
-Maassluis,32768,877000,0,26,27
-Midden-Delfland,19391,596000,0,14,36
-Nissewaard,84797,2068000,0,18,13
-Pijnacker-Nootdorp,54331,2658000,0,25,18
-Ridderkerk,45743,0,0,19,24
-Rotterdam,623642,0,0,29,3
-Rijswijk,53467,2183000,0,32,22
-Schiedam,77999,2888000,0,26,17
-Vlaardingen,72404,0,0,22,19
-Wassenaar,26211,0,0,20,31
-Westland,108603,3152000,0,11,8
-Westvoorne,14626,1103000,0,16,48
-Zoetermeer,124025,3940000,0,28,13
+name,inhabitants,green energy openness,political variety
+Albrandswaard,25271,0,13
+Barendrecht,48673,20,14
+Brielle,17181,24,29
+Capelle aan den IJssel,66818,23,15
+Delft,101030,37,10
+s-Gravenhage,544766,29,4
+Hellevoetsluis,38778,21,15
+Krimpen aan den IJssel,29120,13,31
+Lansingerland,61601,20,15
+Leidschendam-Voorburg,107905,32,6
+Maassluis,32768,26,27
+Midden-Delfland,19391,14,36
+Nissewaard,84797,18,13
+Pijnacker-Nootdorp,54331,25,18
+Ridderkerk,45743,19,24
+Rotterdam,623642,29,3
+Rijswijk,53467,32,22
+Schiedam,77999,26,17
+Vlaardingen,72404,22,19
+Wassenaar,26211,20,31
+Westland,108603,11,8
+Westvoorne,14626,16,48
+Zoetermeer,124025,28,13

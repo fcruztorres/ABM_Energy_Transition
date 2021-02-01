@@ -3,21 +3,19 @@ extensions [csv]
 ;;;;;;;;;;;;;;;;;;;;;;;; GLOBALS ;;;;;;;;;;;;;;;;;;;;;;;;
 globals [
   proposed-projects
+
+  ; Timekeeping
   current-month
   current-year
+
   ; Political-Scenario variables
   change-in-openness
   change-in-variety
 
-  offshore-small-groups
-  offshore-medium-groups
-  offshore-large-groups
-  onshore-small-groups
-  onshore-medium-groups
-  onshore-large-groups
+  search-areas
+  meetings-conducted
 
-  receiving-municipalities
-  responsible-municipality
+  projects-proposed
 
 ]
 
@@ -31,21 +29,20 @@ breed [projects project]
 municipalities-own [
   name
   inhabitants
-  yearly-budget
-  allocated-funds
-  available-personnel
   green-energy-openness
   political-variety
-  city-council-size
-  knowledge-received
+  number-informal-meetings
 ]
 
 projects-own [
   active
-  cost
   installed-power
   project-type
   project-size
+  lifespan
+  acceptance-threshold
+  number-samples
+  implementation-time
 ]
 
 
@@ -57,12 +54,11 @@ directed-link-breed [project-connections project-connection]
 municipality-connections-own [trust] ; trust ranges from 0 to 100, the values from the csv range in 5 discrete steps (0 to 5) which are then scaled up
 
 project-connections-own [
-  personnel
-  knowledge-needed
-  priority ; integer, the higher the priority, the more is invested in a project
+  implementation-time-left ; number of ticks that still need to pass until the project becomes active
   owner ; boolean, whether the municipality is the owner of a project
   positively-affected ; boolean, whether a municipality is positively affected
   negatively-affected ; boolean, whether a municipality is negatively affected
+  project-phase ; 0 = project is proposed, 1 = project is in the permission progress, 2 = project is implemented
 
 ]
 
@@ -73,6 +69,8 @@ to setup
 
   set current-month 1
   set current-year 2021
+  set meetings-conducted 0
+  set projects-proposed 0
 
   setup-municipalities
   setup-informal-network
@@ -111,37 +109,13 @@ to setup-municipalities
         ; Variables
         set name item 0 data
         set inhabitants item 1 data
-        set yearly-budget item 2 data
-        set available-personnel item 3 data
-        set green-energy-openness item 4 data
-        set political-variety item 5 data
-        set allocated-funds 0
+        set green-energy-openness item 2 data
+        set political-variety item 3 data
+        set number-informal-meetings 0
+
         set label name
         set color blue
         set shape "circle"
-
-        ; Determine number of city council seats (source: https://nl.wikipedia.org/wiki/Gemeenteraad#Nederland)
-        if inhabitants > 0 [set city-council-size 9]
-        if inhabitants > 3000 [set city-council-size 11]
-        if inhabitants > 6000 [set city-council-size 13]
-        if inhabitants > 10000 [set city-council-size 15]
-        if inhabitants > 15000 [set city-council-size 17]
-        if inhabitants > 20000 [set city-council-size 19]
-        if inhabitants > 25000 [set city-council-size 21]
-        if inhabitants > 30000 [set city-council-size 23]
-        if inhabitants > 35000 [set city-council-size 25]
-        if inhabitants > 40000 [set city-council-size 27]
-        if inhabitants > 45000 [set city-council-size 29]
-        if inhabitants > 50000 [set city-council-size 31]
-        if inhabitants > 60000 [set city-council-size 33]
-        if inhabitants > 70000 [set city-council-size 35]
-        if inhabitants > 80000 [set city-council-size 37]
-        if inhabitants > 100000 [set city-council-size 39]
-        if inhabitants > 200000 [set city-council-size 45]
-
-        ;preliminary personnel setting based on inhabitants
-        set available-personnel round (inhabitants / 50000 * 2)
-        set knowledge-received 0
 
         ; municipalities are generated in the upper part of the screen
         let x-cor random-xcor
@@ -151,7 +125,7 @@ to setup-municipalities
         setxy x-cor y-cor
 
 
-        set size (0.3 * log inhabitants 10)
+        set size (0.5 * log inhabitants 10)
       ]
     ];end past header
 
@@ -180,8 +154,8 @@ to setup-informal-network
     ]
   ]
 
-  repeat 20 [
-    update-layout
+  repeat 50 [
+    update-layout True
   ]
 
 
@@ -214,22 +188,26 @@ to setup-projects
       ; a higher amount of small projects can be carried out, while sites available for large plants are geographically limited.
       ; according to the configuration below, it is possible for each costal municipality (five in total) to conceive a small or medium offshore project as worthy of consideration
       ; small wind or solar projects are possible for each municipality which has the geographical space needed within their territory. Similarly for medium projects.
-      if (item 0 data = "windpark-small-onshore") or (item 0 data = "solarpark-small") [set n-projects 9]
-      if (item 0 data = "windpark-small-offshore") or (item 0 data = "windpark-medium-offshore") or (item 0 data = "windpark-medium-onshore") or (item 0 data = "solarpark-medium") [set n-projects 5]
-      if (item 0 data = "windpark-large-offshore") or (item 0 data = "windpark-large-onshore") or (item 0 data = "solarpark-large") [set n-projects 2]
+      if (member? (item 0 data) ["solarpark-urban"]) [set n-projects 15]
+      if (member? (item 0 data) ["windpark-small" "solarpark-small"]) [set n-projects 9]
+      if (member? (item 0 data) ["windpark-medium" "solarpark-medium"]) [set n-projects 6]
+      if (member? (item 0 data) ["windpark-large" "solarpark-large"]) [set n-projects 3]
 
       ;create possible energy projects
       create-projects n-projects [
         ; Variables
+        set active False
         set project-type item 0 data
-        set cost item 1 data
-        set installed-power item 2 data
-        set project-size item 3 data
-        set shape project-type
+        set installed-power item 1 data
+        set lifespan item 2 data
+        set acceptance-threshold item 3 data
+        set number-samples item 4 data
+        set implementation-time (item 5 data) * 12 ; ticks
 
         let x-cor random-xcor
         let y-cor random-ycor
 
+        set shape project-type
         set size 3
         set hidden? True
       ]
@@ -244,112 +222,19 @@ to setup-projects
 
 end
 
+
 to setup-municipality-groups
-  ;initialize the municipality groups. They will later be populated by all the possible
-  ; angentsets of municipalities that, together, can be assigned to a single energy project
-      set offshore-small-groups []
-      set offshore-medium-groups []
-      set offshore-large-groups []
-      set onshore-small-groups []
-      set onshore-medium-groups []
-      set onshore-large-groups []
 
+  ; Make search areas a list of lists
+  set search-areas []
 
-
-  file-close-all ; close all open files
-
-  if not file-exists? "data/municipality_groups.csv" [
-    error "No file 'projects.csv' found!"
-  ]
-  let fileHeader 1 ; there is 1 header line, line 1 is the first data line (dont forget, we count from 0)
-
-  file-open "data/municipality_groups.csv"
-
-  ; need to skip the first fileHeader rows
-  let row 0 ; the row that is currently read
-
-  ; We'll read all the data in a single loop
-  while [ not file-at-end? ] [
-    ; here the CSV extension grabs a single line and puts the read data in a list
-    let data (csv:from-row  file-read-line)
-
-    ; check if the row is empty or not
-    if fileHeader <= row  [ ; we are past the header
-
-      repeat 1 [
-        ; setup the global variables realted to municipality groups
-        if item 0 data = "offshore-small" [
-          ; read and store the row of the csv file, this represents a list/group of municipalities which can be
-          ; assigned a small offshore windpark project
-          let offshore-small-group municipalities with [(name = item 1 data) OR (name = item 2 data) OR (name = item 3 data)]
-
-          ; add such row to the list of all possible groups/lists of municipalities that can be assigned
-          ; a small offshore windpark project
-          set offshore-small-groups lput offshore-small-group offshore-small-groups
-        ]
-
-        if item 0 data = "offshore-medium" [
-          ; read and store the row of the csv file, this represents a list/group of municipalities which can be
-          ; assigned a medium offshore windpark project
-          let offshore-medium-group municipalities with [(name = item 1 data) OR (name = item 2 data) OR (name = item 3 data) OR (name = item 4 data)]
-
-          ; add such row to the list of all possible groups/lists of municipalities that can be assigned
-          ; a medium offshore windpark project
-          set offshore-medium-groups lput offshore-medium-group offshore-medium-groups
-        ]
-
-        if item 0 data = "offshore-large" [
-          ; since the list of all possible groups/lists of municipalities that can be assigned a large offshore windpark project
-          ; is composed only of one agentset
-          set offshore-large-groups municipalities with [(name = item 1 data) OR (name = item 2 data) OR (name = item 3 data) OR (name = item 4 data) OR (name = item 5 data)]
-        ]
-
-        if item 0 data = "onshore-small" [
-          ifelse item 3 data != ""
-          [let onshore-small-group municipalities with [(name = item 1 data) OR (name = item 2 data) OR (name = item 3 data)]
-           set onshore-small-groups lput onshore-small-group onshore-small-groups]
-          [ifelse item 2 data != ""
-            [let onshore-small-group municipalities with [(name = item 1 data) OR (name = item 2 data)]
-             set onshore-small-groups lput onshore-small-group onshore-small-groups]
-            [let onshore-small-group municipalities with [name = item 1 data]
-             set onshore-small-groups lput onshore-small-group onshore-small-groups]
-          ]
-        ]
-
-        if item 0 data = "onshore-medium" [
-          ifelse item 3 data != ""
-          [let onshore-medium-group municipalities with [(name = item 1 data) OR (name = item 2 data) OR (name = item 3 data)]
-           set onshore-medium-groups lput onshore-medium-group onshore-medium-groups]
-          [ifelse item 2 data != ""
-            [let onshore-medium-group municipalities with [(name = item 1 data) OR (name = item 2 data)]
-             set onshore-medium-groups lput onshore-medium-group onshore-medium-groups]
-            [let onshore-medium-group municipalities with [name = item 1 data]
-             set onshore-medium-groups lput onshore-medium-group onshore-medium-groups]
-          ]
-        ]
-
-       if item 0 data = "onshore-large" [
-          ifelse item 3 data != ""
-          [let onshore-large-group municipalities with [(name = item 1 data) OR (name = item 2 data) OR (name = item 3 data)]
-           set onshore-large-groups lput onshore-large-group onshore-large-groups]
-          [ifelse item 2 data != ""
-            [let onshore-large-group municipalities with [(name = item 1 data) OR (name = item 2 data)]
-             set onshore-large-groups lput onshore-large-group onshore-large-groups]
-            [let onshore-large-group municipalities with [name = item 1 data]
-             set onshore-large-groups lput onshore-large-group onshore-large-groups]
-          ]
-        ]
-      ]
-
-    ];end past header
-
-    set row row + 1 ; increment the row counter for the header skip
-
-  ]; end of while there are rows
-  ;show offshore-small-groups
-  foreach offshore-small-groups [ x -> let offshore-small-group x show count offshore-small-group ask offshore-small-group [show name]]
-
-  file-close ; make sure to close the file
+  ; Add different search areas based on Figure 6 of the RES 1.0 (p. 22)
+  set search-areas lput (list "Urban area" (list "solarpark-urban") (turtle-set municipalities) 724) search-areas
+  set search-areas lput (list "A4 area" (list "solarpark-small" "solarpark-medium" "solarpark-large" "windpark-small") (turtle-set municipalities with [member? name ["Leidschendam-Voorburg" "Rijswijk" "Delft" "Midden-Delfland" "Schiedam" "Albrandswaard" "Wassenaar"]]) 134) search-areas
+  set search-areas lput (list "A12 area" (list "solarpark-small" "solarpark-medium" "solarpark-large" "windpark-small" "windpark-medium" "windpark-large") (turtle-set municipalities with [member? name ["s-Gravenhage" "Pijnacker-Nootdorp" "Zoetermeer" "Lansingerland"]]) 14) search-areas
+  set search-areas lput (list "A20 area" (list "solarpark-small" "solarpark-medium" "windpark-small" "windpark-medium" "windpark-large") (turtle-set municipalities with [member? name ["Rotterdam" "Vlaardingen" "Maassluis" "Schiedam" "Capelle aan den IJssel"]]) 141) search-areas
+  set search-areas lput (list "A15 area" (list "solarpark-small" "solarpark-medium" "solarpark-large" "windpark-small" "windpark-medium" "windpark-large") (turtle-set municipalities with [member? name ["Westvoorne" "Brielle" "Nissewaard" "Albrandswaard" "Barendrecht" "Ridderkerk" "Krimpen aan den IJssel"]]) 141) search-areas
+  set search-areas lput (list "Greenhouse garden" (list "Solar small" "Solar medium") (turtle-set municipalities with [member? name ["Westland" "Midden-Delfland" "Pijnacker-Nootdorp" "Lansingerland" "Westvoorne"]]) 53) search-areas
 
 end
 
@@ -383,7 +268,7 @@ end
 to go
 
   ; stop simulation if year 2051 is reached
-  if (current-year > 2050)[ stop ]
+  if (current-year > end-year)[ stop ]
 
   ; Handle the external factors
   external-factors
@@ -397,9 +282,18 @@ to go
   ]
 
 
+  ; Administrative Network
+  ; distribute the meetings that are still to be conducted this year evenly across the months
+  repeat round (administrative-network-meetings - meetings-conducted) / (13 - current-month) [
+
+    set meetings-conducted meetings-conducted + 1
+
+    conduct-meeting
+
+  ]
 
   ; Do visuals
-  update-layout
+  update-layout False
 
   tick
 
@@ -415,20 +309,25 @@ to external-factors
 
   ; Do timekeeping
   ; In case the year is not over yet
-  ifelse current-month <= 12 [
+  ifelse current-month < 12 [
     set current-month current-month + 1
   ]
   ; In case a new year starts
   [
     set current-month 1
     set current-year current-year + 1
+    set meetings-conducted 0
+    set projects-proposed 0
 
-    ;Set a new budget
+    ; reset the number of informal meetings
     ask municipalities [
-      set yearly-budget (yearly-budget * (1 + yearly-budget-increase / 100))
+      set number-informal-meetings 0
     ]
 
-
+    ; decrease the lifespan of all active projects by one year
+    ask projects with [active] [
+      set lifespan max (list 0 (lifespan - 1))
+    ]
   ]
 
 
@@ -444,102 +343,84 @@ to external-factors
 
   ]
 
-
+  ; Propose projects
   project-proposals-generation
 
 
 end
 
 
-
 to project-proposals-generation
   ; on average, every year a new project is proposed to and taken into account by a municipality in the region
-  set proposed-projects n-of random ((total-project-proposal-frequency + 1) / 12) projects with [hidden? = True]
+  set proposed-projects n-of (round (total-project-proposal-frequency - projects-proposed) / (13 - current-month)) projects with [not any? my-project-connections]
   ask proposed-projects [
     ; Duplicate the project so that there are always sufficient projects
     hatch 1 [
       set hidden? True
       setxy random-xcor random-ycor
-
     ]
 
 
+    ; Select one suitable search area to implement the project in
+    let search-area-selected False
 
-    ; a group of municipalities will be concerned by the proposed project
-    if project-type = "windpark-small-offshore"  [set receiving-municipalities one-of offshore-small-groups]
-    if project-type = "solarpark-small"  [set receiving-municipalities one-of onshore-small-groups]
-    if project-type = "windpark-small-onshore"  [set receiving-municipalities one-of onshore-small-groups]
-    if project-type = "windpark-medium-offshore"   [set receiving-municipalities one-of offshore-medium-groups]
-    if project-type = "solarpark-medium"   [set receiving-municipalities one-of onshore-medium-groups]
-    if project-type = "windpark-medium-onshore"   [set receiving-municipalities one-of onshore-medium-groups]
-    if project-type = "windpark-large-offshore"  [set receiving-municipalities one-of offshore-large-groups]
-    if project-type = "solarpark-large"  [set receiving-municipalities one-of onshore-large-groups]
-    if project-type = "windpark-large-onshore"  [set receiving-municipalities one-of onshore-large-groups]
+    while [search-area-selected = False] [
+      ; randomly select one search area
+      let search-area one-of search-areas
+
+      ; check if that search area is in need for the project
+      if member? project-type (item 1 search-area) [
+        ; indicate that a suitable search area is found
+        set search-area-selected True
+
+         ; pick one municipality out of the search area as a project owner
+        let responsible-municipality one-of item 2 search-area
+
+        ; create project connection to the owner
+        create-project-connection-to responsible-municipality [
+          set project-phase 0 ; to indicate that the project is proposed
+          set implementation-time-left [implementation-time] of myself ; needs to be the lead-time from the csv
+          set positively-affected True ; a municipality responsible is assumed to benefit from a project automatically
+          set owner True ; set the municipality to the "responsible" municipality
+          set shape "project-owner"
+
+          if not show-projects [hide-link]
+
+        ]
 
 
-    ; determine the knowledge needed depending on the project size
-    let knowledge-needed-for-project 0
-    if (project-size = 1) [set knowledge-needed-for-project 50] ; in months*person (only managerial knowledge, perhaps the technical one is out of scope, since it would be so much (entire teams of workers
-    if (project-size = 2) [set knowledge-needed-for-project 100] ; not belonging to the municipality).
-    if (project-size = 3) [set knowledge-needed-for-project 200]
+        ; Only create externalities whenever the search area is not an urban area
+        if item 0 search-area != "Urban area" [
 
-    ; one municipality will actually receive and take into account the project, i.e. the "responsible municipality"
-    ; while all others will only be "positively affected" or "negatively affected". Naturally, the responsible municipality will also be
-    ; positively or negatively affected by the project.
+          ; assign positive and negative externatities to the other municipalities
+          create-project-connections-to item 2 search-area [
+            set owner False
 
-    ifelse is-agentset? receiving-municipalities[
-      set responsible-municipality one-of receiving-municipalities
-    ][
-      set responsible-municipality receiving-municipalities
-    ]
+            ; a project can have positive, negative or no externalities on another municipality
+            let dice random 3
+            if dice = 0 [ ; positive externalities
+              set shape "project-externality"
+              set positively-affected True
+              set negatively-affected False
+              set color 83
+            ]
+            if dice = 1 [ ; positive externalities
+              set shape "project-externality"
+              set positively-affected False
+              set negatively-affected True
+              set color 23
+            ]
 
-    ; Create link to the project owner
-    create-project-connection-to responsible-municipality [  ; remember to use "create-project-connection agent" to create 1 link, while "create-project-connections agentset" to create multiple
-
-      set knowledge-needed knowledge-needed-for-project
-      set priority 10 ; initial priority is 10 if a municipality is a project owner
-      set personnel 0 ; this should be the number of people a municipality wants to devote to this project, it will increase, decreasing the available personnel of the municipality
-      set positively-affected True ; a municipality responsible is assumed to benefit from a project automatically
-      set owner True ; set the municipality to the "responsible" municipality
-      set shape "project-owner"
-    ]
-
-    ; Check if there are multiple municipalities left in the agentset
-    if is-agentset? receiving-municipalities [
-
-      ; remove responsible municipality from agent set
-      ask responsible-municipality [
-        set receiving-municipalities other receiving-municipalities
-      ]
-
-      if is-agentset? receiving-municipalities [
-        create-project-connections-to receiving-municipalities [
-          set owner False
-          set shape "project-externality"
-          set priority 0 ; initial prio is 0 if a municipality is only affected
-
-          let externality one-of [ true false ] ; true = positive externalities, false = negative externalities
-          ifelse externality [
-            set positively-affected True
-            set negatively-affected False
-            set color 83
-          ][
-            set positively-affected False
-            set negatively-affected True
-            set color 23
+            ifelse show-externalities [show-link ] [hide-link]
           ]
-
-
         ]
       ]
     ]
-
-
     ; once projects are proposed to and taken into account by a municipality, they are shown and associated with the municipality which received it
-    set hidden? False
+    if show-projects [
+      set hidden? False
 
-
-
+    ]
   ]
 
 
@@ -549,12 +430,9 @@ end
 to manage-projects
 
   ; Check whether there are new projects that do not have any personnel assigned
-  let new-projects my-project-connections with [personnel = 0 AND owner = True]
+  let new-projects my-project-connections with [project-phase = 0 AND owner = True]
 
   if any? new-projects [
-
-    ; Get the number of votes needed depending on the aggregation rules
-    let number-votes-needed round (0.5 * city-council-size)
 
     ; Iterate over the new projects proposed
     ask new-projects [
@@ -563,99 +441,103 @@ to manage-projects
 
       ; In 50% of the cases, the city council decision is delayed
       if random-float 1 > 0.5 [
-        if show-project-delay [
-          output-print (word "PROJECT DELAYED IN CITY COUNCIL: " [project-type] of project-to-discuss " in " [name] of myself)
+        if show-municipal-decisions [
+          output-print (word "PROJECT DELAYED: " [project-type] of project-to-discuss " in " [name] of myself)
         ]
         stop
       ]
 
-      ; Threshold to vote yes depends on the size of the project
-      let threshold 0
-      if [project-size] of project-to-discuss = 1 [set threshold 30]
-      if [project-size] of project-to-discuss = 2 [set threshold 40]
-      if [project-size] of project-to-discuss = 3 [set threshold 50]
+      let vote-list []
 
-      let number-pro-votes 0
-
-      repeat [city-council-size] of myself [
-        if random-normal [green-energy-openness] of myself [political-variety] of myself > threshold [set number-pro-votes number-pro-votes + 1]
+      repeat [number-samples] of project-to-discuss [
+        set vote-list lput (random-normal [green-energy-openness] of myself [political-variety] of myself) vote-list
       ]
 
       ; Check for vote results
-      ifelse number-pro-votes >= number-votes-needed [
+      ifelse mean vote-list >= [acceptance-threshold] of project-to-discuss [
         ; in case a project is accepted, assign one person working on the project
-        if show-project-approvals [
-          output-print (word "PROJECT ACCEPTED IN CITY COUNCIL: " [project-type] of project-to-discuss " in " [name] of myself " (" number-pro-votes " out of " number-votes-needed " votes needed)")
+        if show-municipal-decisions [
+          output-print (word "PROJECT ACCEPTED: " [project-type] of project-to-discuss " in " [name] of myself )
         ]
 
-        set personnel 0.5 ; to recognize in a later step that the project was accepted
+        set project-phase 1 ; to indicate that the project is in the permission procedure
+
 
         ; If accepted, the trust towards a municipality with negative externalities is reduced
         let negatively-affected-municipalities turtle-set nobody
+        let positively-affected-municipalities turtle-set nobody
 
         ask [link-neighbors] of project-to-discuss [
           if [negatively-affected = True] of link-with project-to-discuss [
             set negatively-affected-municipalities (turtle-set negatively-affected-municipalities self)
           ]
+          if [positively-affected = True] of link-with project-to-discuss [
+            set positively-affected-municipalities (turtle-set positively-affected-municipalities self)
+          ]
         ]
-;
-;        if any? negatively-affected-municipalities [
-;          print (word "Several municipalities are negatively affected by the project of " [name] of myself ":")
-;        ]
 
         let project-manager myself
 
+        ; Decrease in trust with negatively affected municipalities
         ask negatively-affected-municipalities [
           ask municipality-connection-with project-manager [
             ;print (word "Trust decreased between " [name] of project-manager " (project manager) and " [name] of myself)
-            set trust trust * 0.8 ; 20% descrease in trust
+            set trust trust * 0.95 ; 5% descrease in trust
           ]
-
         ]
 
+        ; Increase in trust with positively affected municipalities
+        ask positively-affected-municipalities [
+          if is-link? municipality-connection-with project-manager [ ; check, because project owner also has positive externalities
+            ask municipality-connection-with project-manager [
+              set trust min (list 100 (trust * 1.025)) ; 2% increase in trust
+            ]
+          ]
+        ]
 
       ][
         ; in case a project is rejected
 
-        if show-project-rejections [
-          output-print (word "PROJECT REJECTED IN CITY COUNCIL: " [project-type] of project-to-discuss " in " [name] of myself " (" number-pro-votes " out of " number-votes-needed " votes needed)")
+        if show-municipal-decisions [
+          output-print (word "PROJECT REJECTED: " [project-type] of project-to-discuss " in " [name] of myself)
         ]
         ask project-to-discuss [die]
       ]
     ]
   ]
 
-  ; Assign the available personnal to the projects relative to their size in GwH (larger projects are assigned more people)
-  let projects-in-progress my-project-connections with [personnel > 0 AND owner = True]
-  if any? projects-in-progress [
-
-    ; Get total GwH of all the projects proposed
-    let total-gwh 0
-    ask projects-in-progress [
-      set total-gwh total-gwh + [installed-power] of other-end
-    ]
-
-    ; Assign the personal relative to the project size
-    ask projects-in-progress [
-      set personnel max list 1 round ([available-personnel] of myself * [installed-power] of other-end /  total-gwh)
-    ]
+  ; Work on the projects which are in phase 1 (permission phase)
+  let projects-in-progress my-project-connections with [project-phase = 1 AND owner = True]
+  let active-projects (turtle-set [other-end] of my-project-connections with [project-phase = 2 AND owner = True])
 
 
-  ]
-
-
-  ; Gain project-specific knowledge based on personell assigned to the projects
-
+  ; Gain project-specific knowledge and decrease the implementation time
   ask projects-in-progress [
-     set knowledge-needed max list 0  (knowledge-needed - personnel)
 
-    ; Allocate the received knowledge from other municipalities
-    set knowledge-needed max list 0 (knowledge-needed - [knowledge-received] of myself / count projects-in-progress)
+    ; Figure out if there are already active projects of the same type. If yes, gain 5% efficiency for each project that has already been successfully implemented
+    let own-project-type [project-type] of other-end
+    let experience-factor ((count active-projects with [project-type = own-project-type]) / 20)
+
+    set implementation-time-left max list 0  (implementation-time-left - (1 + experience-factor))
+
+    ; If no implementation time is left, set the other end to active
+    if implementation-time-left = 0 [
+      ; set the project phase to implementatino
+      set project-phase 2
+
+      ; set the project to active
+      ask other-end [set active True]
+    ]
 
   ]
 
-  ; Set received knowledge back to 0
-  set knowledge-received 0
+
+  ; Decomission projects which lifespan has elapsed
+  ask my-project-connections with [project-phase = 2 AND owner = True AND [lifespan] of other-end = 0] [
+    ask other-end [
+      set active False
+    ]
+  ]
 
 
 
@@ -668,54 +550,114 @@ to communicate-informally
 
   ; Get a list of own projects that are currently managed
   let own-projects []
-  ask my-project-connections with [owner]  [
+  ask my-project-connections with [owner AND project-phase = 1 AND [project-type] of other-end != "solarpark-urban"]  [
     set own-projects lput [project-type] of other-end own-projects
   ]
 
-  ; selects all the municipalities that have any connections to projects that they own, on which they work, and which are in the list of the caller municipalities' own projects
-  ask other municipalities with [any? my-project-connections with [owner AND personnel > 0 AND member? [project-type] of other-end own-projects]] [
+  ; Get municipality's friends, select the 3 best friends
+  let friend-connections max-n-of 3 my-municipality-connections [trust]
+  let friends (turtle-set [other-end] of friend-connections) with [any? my-project-connections with [owner AND project-phase = 2 AND member? [project-type] of other-end own-projects]]
 
-    ; get current trust level between municipalities
-    let current-trust-level [trust] of municipality-connection-with myself
+  ; Check if there are any friends that have already worked on a project
+  if any? friends [
 
-    ; The more trust there is, the higher the likelihood of information sharing
-    if random 100 < current-trust-level [
+    ; Communicate informally with close friends
+    repeat round (informal-meetings-frequency - number-informal-meetings) / (13 - current-month) [
 
-      ; Knowledge that is shared depends on trust and the amount of available personal
-      set knowledge-received [available-personnel] of myself * (current-trust-level / 100)
+      ; Select a close friend
+      let close-friend one-of friends
 
-      ask municipality-connection-with myself [
-        set trust min list 100 (trust * 1.01)
+      set number-informal-meetings number-informal-meetings + 1
+
+      let percentage-shared ([trust] of municipality-connection-with close-friend) / 100
+
+      ask one-of my-project-connections with [owner AND project-phase = 1][
+        set implementation-time-left implementation-time-left - percentage-shared
       ]
+
+      ; increase trust between the two municipalities
+      ask municipality-connection-with close-friend [
+        set trust min (list 100 (trust * 1.01)) ; increase by 1%
+      ]
+
     ]
   ]
 
 
-  ; Form coalitions with other actors, that are also negatively or positively affected
-
 
 
 
 
 end
+
+
+
+to conduct-meeting
+  if show-regional-decisions [
+    output-print (word "ADMINISTRATIVE NETWORK MEETING " meetings-conducted "/" administrative-network-meetings " started")
+  ]
+
+  foreach search-areas [
+    ; store current search area in a local variable
+    x -> let search-area x
+
+
+    ; if any of the members of the search area has an active project, share knowledge with the others
+    if any? (item 2 search-area) with [any? my-project-connections with [[active] of other-end]] [
+      ;show (item 2 search-area) with [any? my-project-connections with [[active] of other-end]]
+
+    ]
+  ]
+
+end
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;; DISPLAY FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;
-to update-layout
-  ; Color based on different trust values
-  ask municipality-connections [
-    set color (50 + trust / 20)
+to update-layout [first-time]
+
+
+  ifelse show-municipal-network OR first-time [
+
+    ; Color based on different trust values
+    ask municipality-connections [
+      show-link
+      set color (50 + trust / 20)
+    ]
+
+    layout-spring municipalities municipality-connections with [trust > 0]  0.7 30 3
+    layout-spring municipalities municipality-connections with [trust > 50]  0.7 20 3
+  ] [
+    ask municipality-connections [hide-link]
   ]
 
-  layout-spring municipalities municipality-connections with [trust > 0]  0.5 20 3
-  layout-spring municipalities municipality-connections with [trust > 50]  0.5 10 3
-
-
-
-  layout-spring projects project-connections 0.5 15 2
+  layout-spring projects project-connections with [owner] 0.5 2 2
 
 
 end
+
+;;;;;;;;;;;;;;;;;;;;;;;; REPORTER FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+to-report current-renewable-production [project-category]
+  if project-category = "wind" [
+    report sum [installed-power] of projects with [active AND member? project-type (list "windpark-small" "windpark-medium" "windpark-large") ]
+  ]
+
+  if project-category = "solar" [
+    report sum [installed-power] of projects with [active AND member? project-type (list "solarpark-small" "solarpark-medium" "solarpark-large") ]
+  ]
+
+  if project-category = "urban" [
+    report sum [installed-power] of projects with [active AND project-type = "solarpark-urban" ]
+  ]
+
+
+end
+
+
+
+
 @#$#@#$#@
 GRAPHICS-WINDOW
 10
@@ -762,27 +704,27 @@ NIL
 1
 
 CHOOSER
-558
-194
-769
-239
+808
+44
+1091
+89
 Political-Scenario
 Political-Scenario
 "Base Case" "Conservative push" "Green awareness" "Polarization" "Consolidation"
-1
+2
 
 OUTPUT
-918
-25
-1402
+562
 207
+1098
+389
 13
 
 MONITOR
-854
-25
-911
-70
+561
+158
+618
+203
 Year
 current-year
 17
@@ -790,10 +732,10 @@ current-year
 11
 
 MONITOR
-854
-74
-911
-119
+620
+158
+677
+203
 Month
 current-month
 17
@@ -801,10 +743,10 @@ current-month
 11
 
 PLOT
-998
-228
-1198
-378
+1106
+207
+1274
+388
 Political Overview
 Green Energy Openness
 Count
@@ -817,21 +759,6 @@ false
 "" ""
 PENS
 "green-energy-openness" 1.0 1 -13840069 true "" "histogram [green-energy-openness] of municipalities"
-
-SLIDER
-558
-151
-769
-184
-yearly-budget-increase
-yearly-budget-increase
--15
-15
-3.0
-1
-1
-%
-HORIZONTAL
 
 BUTTON
 558
@@ -851,28 +778,10 @@ NIL
 1
 
 PLOT
-1204
-229
-1404
-379
-Budget Overview
-Tick
-Budget
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot sum [yearly-budget] of municipalities"
-
-PLOT
-756
-385
-1055
-535
+768
+397
+1096
+562
 Projects overview
 Tick
 Number Projects
@@ -885,89 +794,39 @@ true
 "" ""
 PENS
 "Accepted by municipalities" 1.0 0 -16777216 true "" "plot count project-connections with [owner = True]"
-"Projects implemented" 1.0 0 -14439633 true "" "plot count projects with [active = True]"
-
-CHOOSER
-558
-246
-770
-291
-Aggregation-Rules
-Aggregation-Rules
-"Unanimity" "Majority"
-0
-
-PLOT
-1065
-384
-1405
-534
-Knowlege Overview
-Tick
-Person*Month
-0.0
-10.0
-0.0
-10.0
-true
-true
-"" ""
-PENS
-"Knowledge needed" 1.0 0 -16777216 true "" "plot sum [knowledge-needed] of project-connections with [owner = True AND personnel > 0]"
+"Active projects" 1.0 0 -14439633 true "" "plot count projects with [active = True]"
 
 SLIDER
-558
-111
-769
-144
+808
+92
+1091
+125
 total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-12.0
+15.0
 1
 1
 per year
 HORIZONTAL
 
 SWITCH
-560
-342
-729
-375
-show-project-delay
-show-project-delay
-1
-1
--1000
-
-SWITCH
-559
-380
-729
-413
-show-project-rejections
-show-project-rejections
-1
-1
--1000
-
-SWITCH
-559
-417
-729
-450
-show-project-approvals
-show-project-approvals
+1140
+83
+1329
+116
+show-municipal-decisions
+show-municipal-decisions
 0
 1
 -1000
 
 PLOT
-791
-228
-991
-378
+563
+397
+763
+562
 Trust
 Tick
 Trust
@@ -980,6 +839,145 @@ false
 "" ""
 PENS
 "Trust" 1.0 0 -16777216 true "" "plot mean [trust] of municipality-connections"
+
+SLIDER
+807
+128
+1092
+161
+administrative-network-meetings
+administrative-network-meetings
+0
+25
+6.0
+1
+1
+per year
+HORIZONTAL
+
+SWITCH
+1140
+46
+1331
+79
+show-regional-decisions
+show-regional-decisions
+1
+1
+-1000
+
+TEXTBOX
+805
+27
+1116
+55
+Levers -------------------------------------------
+11
+0.0
+1
+
+TEXTBOX
+1147
+22
+1418
+64
+Visuals -----------------------------------
+11
+0.0
+1
+
+TEXTBOX
+1116
+49
+1131
+189
+|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n
+11
+0.0
+1
+
+SWITCH
+1279
+121
+1433
+154
+show-externalities
+show-externalities
+1
+1
+-1000
+
+SLIDER
+808
+164
+1094
+197
+informal-meetings-frequency
+informal-meetings-frequency
+0
+50
+25.0
+1
+1
+per year
+HORIZONTAL
+
+SWITCH
+1142
+160
+1330
+193
+show-municipal-network
+show-municipal-network
+1
+1
+-1000
+
+SWITCH
+1142
+121
+1274
+154
+show-projects
+show-projects
+0
+1
+-1000
+
+PLOT
+1105
+397
+1391
+562
+MW implemented
+NIL
+NIL
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"Wind" 1.0 0 -11221820 true "" "plot current-renewable-production \"wind\""
+"Solar" 1.0 0 -1184463 true "" "plot current-renewable-production \"solar\""
+"Urban" 1.0 0 -7500403 true "" "plot current-renewable-production \"urban\""
+
+SLIDER
+561
+104
+733
+137
+end-year
+end-year
+2030
+2100
+2050.0
+5
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1258,34 +1256,6 @@ Polygon -1 true true 195 285 210 285 210 240 240 210 195 210
 Polygon -7500403 true false 276 85 285 105 302 99 294 83
 Polygon -7500403 true false 219 85 210 105 193 99 201 83
 
-solar-generating-district
-false
-2
-Rectangle -7500403 true false 104 195 270 270
-Rectangle -16777216 true false 180 225 195 240
-Rectangle -16777216 true false 150 225 165 240
-Rectangle -16777216 true false 120 225 135 240
-Line -7500403 false 90 135 90 195
-Rectangle -7500403 true false 14 105 90 210
-Polygon -13345367 true false 0 90 30 120 105 120 75 90
-Rectangle -13345367 true false 45 225 45 225
-Polygon -13345367 true false 150 180 180 210 225 210 195 180
-Polygon -13345367 true false 90 180 120 210 165 210 135 180
-Polygon -13345367 true false 210 180 240 210 285 210 255 180
-Line -16777216 false 15 105 90 105
-Line -16777216 false 105 195 270 195
-Line -16777216 false 240 180 270 210
-Line -16777216 false 180 180 210 210
-Line -16777216 false 120 180 150 210
-Rectangle -16777216 true false 30 135 45 150
-Rectangle -16777216 true false 60 135 75 150
-Rectangle -16777216 true false 30 165 45 180
-Rectangle -16777216 true false 60 165 75 180
-Rectangle -16777216 true false 210 225 225 240
-Rectangle -16777216 true false 240 225 255 240
-Line -16777216 false 60 90 90 120
-Line -16777216 false 30 90 60 120
-
 solarpark-large
 false
 2
@@ -1391,6 +1361,34 @@ Line -16777216 false 240 180 270 210
 Line -16777216 false 180 180 210 210
 Line -16777216 false 120 180 150 210
 
+solarpark-urban
+false
+2
+Rectangle -7500403 true false 104 195 270 270
+Rectangle -16777216 true false 180 225 195 240
+Rectangle -16777216 true false 150 225 165 240
+Rectangle -16777216 true false 120 225 135 240
+Line -7500403 false 90 135 90 195
+Rectangle -7500403 true false 14 105 90 210
+Polygon -13345367 true false 0 90 30 120 105 120 75 90
+Rectangle -13345367 true false 45 225 45 225
+Polygon -13345367 true false 150 180 180 210 225 210 195 180
+Polygon -13345367 true false 90 180 120 210 165 210 135 180
+Polygon -13345367 true false 210 180 240 210 285 210 255 180
+Line -16777216 false 15 105 90 105
+Line -16777216 false 105 195 270 195
+Line -16777216 false 240 180 270 210
+Line -16777216 false 180 180 210 210
+Line -16777216 false 120 180 150 210
+Rectangle -16777216 true false 30 135 45 150
+Rectangle -16777216 true false 60 135 75 150
+Rectangle -16777216 true false 30 165 45 180
+Rectangle -16777216 true false 60 165 75 180
+Rectangle -16777216 true false 210 225 225 240
+Rectangle -16777216 true false 240 225 255 240
+Line -16777216 false 60 90 90 120
+Line -16777216 false 30 90 60 120
+
 square
 false
 0
@@ -1475,28 +1473,7 @@ Line -7500403 true 40 84 269 221
 Line -7500403 true 40 216 269 79
 Line -7500403 true 84 40 221 269
 
-windpark-large-offshore
-false
-2
-Rectangle -13345367 true false 30 270 300 285
-Rectangle -13345367 true false 15 255 285 270
-Rectangle -13345367 true false 105 135 135 270
-Rectangle -7500403 true false 105 75 135 75
-Polygon -7500403 true false 75 195 75 225 120 165 165 105 165 75
-Polygon -7500403 true false 165 195 195 195 135 150 75 105 45 105
-Circle -2674135 true false 105 135 30
-Polygon -13345367 true false 120 135 105 150 120 165 180 150
-Rectangle -13345367 true false 210 105 240 255
-Polygon -7500403 true false 180 165 180 195 225 135 270 75 270 45
-Polygon -7500403 true false 270 165 300 165 240 120 180 75 150 75
-Circle -2674135 true false 210 105 30
-Polygon -13345367 true false 225 105 210 120 225 135 285 120
-Rectangle -13791810 true false 60 270 210 285
-Rectangle -13791810 true false 15 240 165 255
-Rectangle -13345367 true false 0 285 345 300
-Rectangle -13791810 true false 135 285 285 300
-
-windpark-large-onshore
+windpark-large
 false
 2
 Rectangle -13345367 true false 105 135 135 270
@@ -1511,28 +1488,7 @@ Polygon -7500403 true false 270 165 300 165 240 120 180 75 150 75
 Circle -2674135 true false 210 105 30
 Polygon -13345367 true false 225 105 210 120 225 135 285 120
 
-windpark-medium-offshore
-false
-2
-Rectangle -13345367 true false 30 270 300 285
-Rectangle -13345367 true false 15 255 285 270
-Rectangle -13345367 true false 105 135 135 270
-Rectangle -7500403 true false 105 75 135 75
-Polygon -7500403 true false 75 195 75 225 120 165 165 105 165 75
-Polygon -7500403 true false 165 195 195 195 135 150 75 105 45 105
-Circle -2674135 true false 105 135 30
-Polygon -13345367 true false 120 135 105 150 120 165 180 150
-Rectangle -13345367 true false 210 180 240 255
-Polygon -7500403 true false 195 210 195 240 195 240 255 165 255 135
-Polygon -7500403 true false 255 225 285 225 195 165 195 165 165 165
-Circle -2674135 true false 210 180 30
-Polygon -13345367 true false 225 180 210 195 225 210 285 195
-Rectangle -13791810 true false 60 270 210 285
-Rectangle -13791810 true false 15 240 165 255
-Rectangle -13345367 true false 0 285 345 300
-Rectangle -13791810 true false 135 285 285 300
-
-windpark-medium-onshore
+windpark-medium
 false
 2
 Rectangle -13345367 true false 105 135 135 270
@@ -1547,23 +1503,7 @@ Polygon -7500403 true false 255 195 285 195 195 135 195 135 165 135
 Circle -2674135 true false 210 150 30
 Polygon -13345367 true false 225 150 210 165 225 180 285 165
 
-windpark-small-offshore
-false
-2
-Rectangle -13345367 true false 30 270 300 285
-Rectangle -13345367 true false 15 255 285 270
-Rectangle -13345367 true false 105 135 135 270
-Rectangle -7500403 true false 105 75 135 75
-Polygon -7500403 true false 75 195 75 225 120 165 165 105 165 75
-Polygon -7500403 true false 165 195 195 195 135 150 75 105 45 105
-Circle -2674135 true false 105 135 30
-Polygon -13345367 true false 120 135 105 150 120 165 180 150
-Rectangle -13791810 true false 60 270 210 285
-Rectangle -13791810 true false 15 240 165 255
-Rectangle -13345367 true false 0 285 345 300
-Rectangle -13791810 true false 135 285 285 300
-
-windpark-small-onshore
+windpark-small
 false
 2
 Rectangle -13345367 true false 105 135 135 270
@@ -1586,7 +1526,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.2.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
@@ -1611,7 +1551,7 @@ project-externality
 link direction
 true
 0
-Circle -7500403 true true 96 96 108
+Circle -7500403 true true 135 135 30
 
 project-owner
 0.0
@@ -1621,7 +1561,7 @@ project-owner
 link direction
 true
 0
-Circle -7500403 true true 96 96 108
+Circle -7500403 true true 135 135 30
 @#$#@#$#@
 0
 @#$#@#$#@
