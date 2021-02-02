@@ -16,7 +16,7 @@ globals [
   meetings-conducted
 
   projects-proposed
-
+  projects-rejected
 ]
 
 
@@ -71,6 +71,7 @@ to setup
   set current-year 2021
   set meetings-conducted 0
   set projects-proposed 0
+  set projects-rejected 0
 
   setup-municipalities
   setup-informal-network
@@ -184,17 +185,9 @@ to setup-projects
     ; check if the row is empty or not
     if fileHeader <= row  [ ; we are past the header
 
-      let n-projects 0
-      ; a higher amount of small projects can be carried out, while sites available for large plants are geographically limited.
-      ; according to the configuration below, it is possible for each costal municipality (five in total) to conceive a small or medium offshore project as worthy of consideration
-      ; small wind or solar projects are possible for each municipality which has the geographical space needed within their territory. Similarly for medium projects.
-      if (member? (item 0 data) ["solarpark-urban"]) [set n-projects 15]
-      if (member? (item 0 data) ["windpark-small" "solarpark-small"]) [set n-projects 9]
-      if (member? (item 0 data) ["windpark-medium" "solarpark-medium"]) [set n-projects 6]
-      if (member? (item 0 data) ["windpark-large" "solarpark-large"]) [set n-projects 3]
 
       ;create possible energy projects
-      create-projects n-projects [
+      create-projects 1 [
         ; Variables
         set active False
         set project-type item 0 data
@@ -223,6 +216,7 @@ to setup-projects
 end
 
 
+
 to setup-municipality-groups
 
   ; Make search areas a list of lists
@@ -233,7 +227,7 @@ to setup-municipality-groups
   set search-areas lput (list "A4 area" (list "solarpark-small" "solarpark-medium" "solarpark-large" "windpark-small") (turtle-set municipalities with [member? name ["Leidschendam-Voorburg" "Rijswijk" "Delft" "Midden-Delfland" "Schiedam" "Albrandswaard" "Wassenaar"]]) 134) search-areas
   set search-areas lput (list "A12 area" (list "solarpark-small" "solarpark-medium" "solarpark-large" "windpark-small" "windpark-medium" "windpark-large") (turtle-set municipalities with [member? name ["s-Gravenhage" "Pijnacker-Nootdorp" "Zoetermeer" "Lansingerland"]]) 14) search-areas
   set search-areas lput (list "A20 area" (list "solarpark-small" "solarpark-medium" "windpark-small" "windpark-medium" "windpark-large") (turtle-set municipalities with [member? name ["Rotterdam" "Vlaardingen" "Maassluis" "Schiedam" "Capelle aan den IJssel"]]) 141) search-areas
-  set search-areas lput (list "A15 area" (list "solarpark-small" "solarpark-medium" "solarpark-large" "windpark-small" "windpark-medium" "windpark-large") (turtle-set municipalities with [member? name ["Westvoorne" "Brielle" "Nissewaard" "Albrandswaard" "Barendrecht" "Ridderkerk" "Krimpen aan den IJssel"]]) 141) search-areas
+  set search-areas lput (list "A15 area" (list "solarpark-small" "solarpark-medium" "solarpark-large" "windpark-small" "windpark-medium" "windpark-large") (turtle-set municipalities with [member? name ["Westvoorne" "Brielle" "Nissewaard" "Albrandswaard" "Barendrecht" "Ridderkerk" "Krimpen aan den IJssel"]]) 305) search-areas
   set search-areas lput (list "Greenhouse garden" (list "Solar small" "Solar medium") (turtle-set municipalities with [member? name ["Westland" "Midden-Delfland" "Pijnacker-Nootdorp" "Lansingerland" "Westvoorne"]]) 53) search-areas
 
 end
@@ -250,14 +244,14 @@ to setup-scenarios
     set change-in-variety  0
   ]
 
-  if Political-Scenario = "Polarization"[
+  if Political-Scenario = "Division in public opinion"[
     set change-in-openness 0
-    set change-in-variety 5
+    set change-in-variety 1.05
   ]
 
-  if Political-Scenario = "Consolidation"[
+  if Political-Scenario = "Unity in public opinion"[
     set change-in-openness 0
-    set change-in-variety -5
+    set change-in-variety 0.95
   ]
 
 
@@ -338,7 +332,7 @@ to external-factors
 
     ask municipalities [
       set green-energy-openness green-energy-openness  + random-float 1 * change-in-openness
-      set political-variety  political-variety + random-float 1 * change-in-variety
+      set political-variety  political-variety * (1 + random-float 1 * (1 - change-in-variety))
     ]
 
   ]
@@ -351,76 +345,84 @@ end
 
 
 to project-proposals-generation
-  ; on average, every year a new project is proposed to and taken into account by a municipality in the region
-  set proposed-projects n-of (round (total-project-proposal-frequency - projects-proposed) / (13 - current-month)) projects with [not any? my-project-connections]
-  ask proposed-projects [
-    ; Duplicate the project so that there are always sufficient projects
-    hatch 1 [
-      set hidden? True
-      setxy random-xcor random-ycor
-    ]
 
+  ; Look at the search areas and the potential identified there (larger potential means a bigger likelihood of a project suggestion there) -> Except the urban areas, which are very small-scale projects
+  ; Iterate over search areas, and make the chance of selection based on the share of total potential of a certain search area
 
-    ; Select one suitable search area to implement the project in
+  repeat round (total-project-proposal-frequency - projects-proposed) / (13 - current-month) [
     let search-area-selected False
 
-    while [search-area-selected = False] [
-      ; randomly select one search area
-      let search-area one-of search-areas
+    ; Randomly get a number (min 1 and max 1371, being the combined potential of the search areas
+    let random-selector (random 1371) + 1
 
-      ; check if that search area is in need for the project
-      if member? project-type (item 1 search-area) [
-        ; indicate that a suitable search area is found
-        set search-area-selected True
+    ; Use that number to select one of the search areas (selected by the potential each search area has
+    let search-area 0
+    if random-selector > 0 [set search-area item 0 search-areas] ; Urban solar
+    if random-selector > 724 [set search-area item 1 search-areas] ; A4 area
+    if random-selector > 858 [set search-area item 2 search-areas] ; A12 area
+    if random-selector > 872 [set search-area item 3 search-areas] ; A20 area
+    if random-selector > 1013 [set search-area item 4 search-areas] ; A15 area
+    if random-selector > 1318 [set search-area item 5 search-areas] ; Greenhouse garden areas
 
-         ; pick one municipality out of the search area as a project owner
-        let responsible-municipality one-of item 2 search-area
+    ; Select the project type that is about to be implemented
+    let proposed-project-type one-of item 1 search-area
 
-        ; create project connection to the owner
-        create-project-connection-to responsible-municipality [
-          set project-phase 0 ; to indicate that the project is proposed
-          set implementation-time-left [implementation-time] of myself ; needs to be the lead-time from the csv
-          set positively-affected True ; a municipality responsible is assumed to benefit from a project automatically
-          set owner True ; set the municipality to the "responsible" municipality
-          set shape "project-owner"
+    ; Get the project archetype
+    ask projects with [not any? my-project-connections AND project-type = proposed-project-type] [
+      ; Duplicate the project so that there are always sufficient projects
+      hatch 1 [
+        set hidden? True
+        setxy random-xcor random-ycor
+      ]
 
-          if not show-projects [hide-link]
+      ; pick one municipality out of the search area as a project owner
+      let responsible-municipality one-of item 2 search-area
 
-        ]
+      ; create project connection to the owner
+      create-project-connection-to responsible-municipality [
+        set project-phase 0 ; to indicate that the project is proposed
+        set implementation-time-left [implementation-time] of myself ; needs to be the lead-time from the csv
+        set positively-affected True ; a municipality responsible is assumed to benefit from a project automatically
+        set owner True ; set the municipality to the "responsible" municipality
+        set shape "project-owner"
+
+        if not show-projects [hide-link]
+
+      ]
 
 
-        ; Only create externalities whenever the search area is not an urban area
-        if item 0 search-area != "Urban area" [
+      ; Only create externalities whenever the search area is not an urban area
+      if item 0 search-area != "Urban area" [
 
-          ; assign positive and negative externatities to the other municipalities
-          create-project-connections-to item 2 search-area [
-            set owner False
+        ; assign positive and negative externatities to the other municipalities
+        create-project-connections-to item 2 search-area [
+          set owner False
 
-            ; a project can have positive, negative or no externalities on another municipality
-            let dice random 3
-            if dice = 0 [ ; positive externalities
-              set shape "project-externality"
-              set positively-affected True
-              set negatively-affected False
-              set color 83
-            ]
-            if dice = 1 [ ; positive externalities
-              set shape "project-externality"
-              set positively-affected False
-              set negatively-affected True
-              set color 23
-            ]
-
-            ifelse show-externalities [show-link ] [hide-link]
+          ; a project can have positive, negative or no externalities on another municipality
+          let dice random 3
+          if dice = 0 [ ; positive externalities
+            set shape "project-externality"
+            set positively-affected True
+            set negatively-affected False
+            set color 83
           ]
+          if dice = 1 [ ; positive externalities
+            set shape "project-externality"
+            set positively-affected False
+            set negatively-affected True
+            set color 23
+          ]
+
+          ifelse show-externalities [show-link ] [hide-link]
         ]
       ]
-    ]
-    ; once projects are proposed to and taken into account by a municipality, they are shown and associated with the municipality which received it
-    if show-projects [
-      set hidden? False
+
+      ; once projects are proposed to and taken into account by a municipality, they are shown and associated with the municipality which received it
+      if show-projects [ set hidden? False  ]
 
     ]
+
+
   ]
 
 
@@ -490,7 +492,7 @@ to manage-projects
         ask positively-affected-municipalities [
           if is-link? municipality-connection-with project-manager [ ; check, because project owner also has positive externalities
             ask municipality-connection-with project-manager [
-              set trust min (list 100 (trust * 1.025)) ; 2% increase in trust
+              set trust min (list 100 (trust * 1.025)) ; 2.5% increase in trust
             ]
           ]
         ]
@@ -501,6 +503,10 @@ to manage-projects
         if show-municipal-decisions [
           output-print (word "PROJECT REJECTED: " [project-type] of project-to-discuss " in " [name] of myself)
         ]
+
+        ; Add to counter
+        set projects-rejected projects-rejected + 1
+
         ask project-to-discuss [die]
       ]
     ]
@@ -657,7 +663,6 @@ end
 
 
 
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 10
@@ -710,12 +715,12 @@ CHOOSER
 89
 Political-Scenario
 Political-Scenario
-"Base Case" "Conservative push" "Green awareness" "Polarization" "Consolidation"
-2
+"Base Case" "Conservative push" "Green awareness" "Division of public opinion" "Unity in public opinion"
+3
 
 OUTPUT
 562
-207
+263
 1098
 389
 13
@@ -743,9 +748,9 @@ current-month
 11
 
 PLOT
-1106
-207
-1274
+1105
+263
+1273
 388
 Political Overview
 Green Energy Openness
@@ -795,6 +800,7 @@ true
 PENS
 "Accepted by municipalities" 1.0 0 -16777216 true "" "plot count project-connections with [owner = True]"
 "Active projects" 1.0 0 -14439633 true "" "plot count projects with [active = True]"
+"Projects rejected" 1.0 0 -2674135 true "" "plot projects-rejected"
 
 SLIDER
 808
@@ -818,7 +824,7 @@ SWITCH
 116
 show-municipal-decisions
 show-municipal-decisions
-0
+1
 1
 -1000
 
@@ -838,7 +844,7 @@ true
 false
 "" ""
 PENS
-"Trust" 1.0 0 -16777216 true "" "plot mean [trust] of municipality-connections"
+"Trust" 1.0 0 -16777216 true "setup-informal-network" "plot mean [trust] of municipality-connections"
 
 SLIDER
 807
@@ -849,7 +855,7 @@ administrative-network-meetings
 administrative-network-meetings
 0
 25
-6.0
+11.0
 1
 1
 per year
@@ -916,7 +922,7 @@ informal-meetings-frequency
 informal-meetings-frequency
 0
 50
-25.0
+50.0
 1
 1
 per year
@@ -929,7 +935,7 @@ SWITCH
 193
 show-municipal-network
 show-municipal-network
-1
+0
 1
 -1000
 
