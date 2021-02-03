@@ -23,6 +23,7 @@ globals [
   A15-area-trust
   A20-area-trust
   greenhouse-area-trust
+  regional-trust
 ]
 
 
@@ -291,6 +292,8 @@ to go
     conduct-meeting
 
   ]
+  ; update the mean trust between municipalities in the region
+  set regional-trust mean [trust] of municipality-connections
 
   ; Do visuals
   update-layout False
@@ -605,6 +608,7 @@ end
 
 
 to conduct-meeting
+
   if show-regional-decisions [
     output-print (word "ADMINISTRATIVE NETWORK MEETING " meetings-conducted "/" administrative-network-meetings " started")
   ]
@@ -615,28 +619,27 @@ to conduct-meeting
 
     ; if any of the members of the search area have an active project, they are in the position to share their experience with others
     let experienced-municipalities (item 2 search-area) with [any? my-project-connections with [[active] of other-end]]
-    ; all of the members of the search area who are currently working on a project are interested into what the experienced municipalites have to say and learn from them
-    let interested-municipalities (item 2 search-area) with [any? my-project-connections with [implementation-time-left > 0]]
-    ;select all the solar projects that are active within the search area
-    let solar-projects-in-search-area projects with [member? project-type (list "solarpark-small" "solarpark-medium" "solarpark-large") AND [[active] of other-end] of my-project-connections AND any? my-project-connections with [member? other-end interested-municipalities]]
-    ;select all the solar projects that are being constructed in the search area
-    let starting-solar-projects-in-search-area projects with [member? project-type (list "solarpark-small" "solarpark-medium" "solarpark-large") AND [implementation-time-left] of my-project-connections > 0 AND any? my-project-connections with [member? other-end interested-municipalities]]
+    let solar-experienced-municipalities (item 2 search-area) with [any? my-project-connections with [[active] of other-end AND member? [project-type] of other-end (list "solarpark-small" "solarpark-medium" "solarpark-large")]]
+    let wind-experienced-municipalities (item 2 search-area) with [any? my-project-connections with [[active] of other-end AND member? [project-type] of other-end (list "windpark-small" "windpark-medium" "windpark-large")]]
+    let urban-experienced-municipalities (item 2 search-area) with [any? my-project-connections with [[active] of other-end AND [project-type] of other-end = "solarpark-urban"]]
 
-    ;select all the wind projects that are active within the search area
-    let wind-projects-in-search-area projects with [member? project-type (list "windpark-small" "windpark-medium" "windpark-large") AND [[active] of other-end] of my-project-connections AND any? my-project-connections with [member? other-end interested-municipalities]]
-    ;select all the wind projects that are being constructed in the search area
-    let starting-wind-projects-in-search-area projects with [member? project-type (list "windpark-small" "windpark-medium" "windpark-large") AND [implementation-time-left] of my-project-connections > 0 AND any? my-project-connections with [member? other-end interested-municipalities]]
+;    show (item 0 search-area)
+;    show (word "experienced municipalities:" [name] of experienced-municipalities)
+;    show (word "solar experienced municipalities:" [name] of solar-experienced-municipalities)
+;    show (word "wind experienced municipalities:" [name] of wind-experienced-municipalities)
 
-    ;select all the urban solar projects that are active within the search area
-    let urban-projects-in-search-area projects with [project-type = "solarpark-urban" AND any? my-project-connections with [member? other-end interested-municipalities]]
-    ;show [name] of interested-municipalities
+    let interested-municipalities (item 2 search-area) with [any? my-project-connections with [project-phase = 1]]
+    let solar-interested-municipalities (item 2 search-area) with [any? my-project-connections with [project-phase = 1 AND member? [project-type] of other-end (list "solarpark-small" "solarpark-medium" "solarpark-large")]]
+    let wind-interested-municipalities (item 2 search-area) with [any? my-project-connections with [project-phase = 1 AND member? [project-type] of other-end (list "windpark-small" "windpark-medium" "windpark-large")]]
+    let urban-interested-municipalities (item 2 search-area) with [any? my-project-connections with [project-phase = 1 AND [project-type] of other-end = "solarpark-urban"]]
 
+;    show (word "interested municipalities:" [name] of interested-municipalities)
+;    show (word "solar interested municipalities:" [name] of solar-interested-municipalities)
+;    show (word "wind interested municipalities:" [name] of wind-interested-municipalities)
+;    show (word "urban interested municipalities:" [name] of urban-interested-municipalities)
 
-    ; During each meeting of a search area information about all ongoing solar and (possibly) wind projects will be exchanged among the
-    ; muncipalities in the same search area. In this way, the average lead time of a solar or wind project will decrease for all municipalities in the search area (since part of the
-    ; work that should have beed done by each municipality alone is shared by other municipalites who are also carrying out the project)
-    if any? experienced-municipalities AND any? interested-municipalities [
-
+    if any? interested-municipalities and any? experienced-municipalities [
+      ; determine the mean trust in the search area
       let search-area-trust mean [trust] of (link-set [my-municipality-connections] of interested-municipalities)
 
       ; store the search areas' trust means to display them
@@ -649,37 +652,43 @@ to conduct-meeting
 
 
 
-      ; for each search area, when a meeting is held, information specific about that search area is exchanged
 
-      ifelse (item 0 search-area) = "Urban area" [ ; in the urban search area only information about urban solar projects is shared
-                                                   ; the more trust there is in the search area, the more information exchange will occur, thus the more lead time decrease will occur
-        ask interested-municipalities [
+
+
+
+
+      ; when search area is "Urban area": an information exchange occurs about urban solarparks alone
+      if any? urban-experienced-municipalities AND any? urban-interested-municipalities [
+        ask urban-interested-municipalities [
           ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
-        ]
 
-      ][ ; in all other search areas information about solar projects is shared instead
-         ; only if there are experienced municipalities in solar projects (i.e., which have already implemented a solar project), then information is exchanged to municipalities interested in the same kind of project
-        if any? experienced-municipalities with [member? [other-end] of my-project-connections solar-projects-in-search-area] [
-          ask interested-municipalities with [member? [other-end] of my-project-connections starting-solar-projects-in-search-area] [
-            ask [my-project-connections] of starting-solar-projects-in-search-area [set implementation-time-left implementation-time-left - search-area-trust / 100]
-
-            ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
-            ask my-municipality-connections with [member? other-end experienced-municipalities] [set trust trust * 1.02] ; the trust increases by 2%
-          ]
-        ]
-        ; only if there are experienced municipalities in solar projects (i.e., which have already implemented a solar project), then information is exchanged to municipalities interested in the same kind of project
-        if any? experienced-municipalities with [member? [other-end] of my-project-connections wind-projects-in-search-area] [
-          ask interested-municipalities with [member? [other-end] of my-project-connections starting-wind-projects-in-search-area] [
-            ask [my-project-connections] of starting-wind-projects-in-search-area [set implementation-time-left implementation-time-left - search-area-trust / 100]
-
-            ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
-            ask my-municipality-connections with [member? other-end experienced-municipalities] [set trust trust * 1.02] ; the trust increases by 2%
-
-          ]
+          ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
+          ask my-municipality-connections with [member? other-end urban-experienced-municipalities] [set trust min (list 100 (trust * 1.001))] ; the trust increases by 0.1%
         ]
       ]
+
+
+      ; when search area is not "Urban area": an information exchange can occur about solar or wind projects
+      if any? solar-experienced-municipalities AND any? solar-interested-municipalities [
+        ask solar-interested-municipalities [
+          ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
+
+          ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
+          ask my-municipality-connections with [member? other-end solar-experienced-municipalities] [set trust min (list 100 (trust * 1.001))] ; the trust increases by 0.1%
+        ]
+      ]
+
+      if any? wind-experienced-municipalities AND any? wind-interested-municipalities [
+        ask wind-interested-municipalities [
+          ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
+
+          ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
+          ask my-municipality-connections with [member? other-end wind-experienced-municipalities] [set trust min (list 100 (trust * 1.001))] ; the trust increases by 0.1%
+        ]
+      ]
+
       ; in each meeting where an experienced (and thus, successful) municipality explains its project implementation, the green energy-openness of all the participating municipalities will increase
-      ask interested-municipalities [set green-energy-openness green-energy-openness * 1.05]
+      ask interested-municipalities [set green-energy-openness min (list 100 (green-energy-openness * 1.001))] ; the green energy openness increases by 0.1%
 
 
 
@@ -731,7 +740,6 @@ to-report current-renewable-production [project-category]
 
 
 end
-
 
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -786,11 +794,11 @@ CHOOSER
 Political-Scenario
 Political-Scenario
 "Base Case" "Conservative push" "Green awareness" "Division of public opinion" "Unity in public opinion"
-3
+0
 
 OUTPUT
 562
-263
+247
 1098
 389
 13
@@ -819,7 +827,7 @@ current-month
 
 PLOT
 1105
-263
+249
 1273
 388
 Political Overview
@@ -853,10 +861,10 @@ NIL
 1
 
 PLOT
-768
-397
-1096
-562
+874
+394
+1202
+559
 Projects overview
 Tick
 Number Projects
@@ -898,24 +906,6 @@ show-municipal-decisions
 1
 -1000
 
-PLOT
-563
-397
-763
-562
-Trust
-Tick
-Trust
-0.0
-10.0
-0.0
-10.0
-true
-false
-"" ""
-PENS
-"Trust" 1.0 0 -16777216 true "setup-informal-network" "plot mean [trust] of municipality-connections"
-
 SLIDER
 807
 128
@@ -925,7 +915,7 @@ administrative-network-meetings
 administrative-network-meetings
 0
 25
-11.0
+12.0
 1
 1
 per year
@@ -1021,10 +1011,10 @@ show-projects
 -1000
 
 PLOT
-1105
-397
-1391
-562
+1211
+394
+1497
+559
 MW implemented
 NIL
 NIL
@@ -1056,10 +1046,10 @@ NIL
 HORIZONTAL
 
 PLOT
-1281
-239
-1481
-389
+563
+394
+870
+559
 search areas' mean trust
 Tick
 Mean Trust
@@ -1071,12 +1061,13 @@ true
 true
 "" ""
 PENS
-"default" 1.0 0 -16777216 true "" "plot urban-area-trust"
-"pen-1" 1.0 0 -7500403 true "" "plot A4-area-trust"
-"pen-2" 1.0 0 -2674135 true "" "plot A12-area-trust"
-"pen-3" 1.0 0 -955883 true "" "plot A15-area-trust"
-"pen-4" 1.0 0 -6459832 true "" "plot A20-area-trust"
-"pen-5" 1.0 0 -1184463 true "" "plot greenhouse-area-trust"
+"Urban" 1.0 0 -16777216 true "" "plot urban-area-trust"
+"A4" 1.0 0 -7500403 true "" "plot A4-area-trust"
+"A12" 1.0 0 -2674135 true "" "plot A12-area-trust"
+"A15" 1.0 0 -955883 true "" "plot A15-area-trust"
+"A20" 1.0 0 -6459832 true "" "plot A20-area-trust"
+"Greenhouse" 1.0 0 -1184463 true "" "plot greenhouse-area-trust"
+"Mean Trust in Region" 1.0 0 -10899396 true "" "plot regional-trust"
 
 @#$#@#$#@
 ## WHAT IS IT?
