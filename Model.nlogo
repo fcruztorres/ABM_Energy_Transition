@@ -8,10 +8,6 @@ globals [
   current-month
   current-year
 
-  ; Political-Scenario variables
-  change-in-openness
-  change-in-variety
-
   search-areas
   meetings-conducted
 
@@ -83,7 +79,6 @@ to setup
   setup-municipalities
   setup-informal-network
   setup-projects
-  setup-scenarios
   setup-municipality-groups
 
 
@@ -155,9 +150,16 @@ to setup-informal-network
     let municipality-id who ; work-around to call the current municipality id later on
 
     ask my-out-municipality-connections [
-      if trust = 0 [ ; in case the trust is zero, possibly override
-        let municipality-trust item (municipality-id + 1) trust-ratings ; select the correct row from the trust table
-        set trust (item ([who] of other-end + 1) municipality-trust * 20) ; select the correct column from the trust table
+
+      ifelse random-intial-trust [
+        set trust random 50
+      ]
+
+      [
+        if trust = 0 [ ; in case the trust is zero, possibly override
+          let municipality-trust item (municipality-id + 1) trust-ratings ; select the correct row from the trust table
+          set trust (item ([who] of other-end + 1) municipality-trust * 20) ; select the correct column from the trust table
+        ]
       ]
     ]
   ]
@@ -240,29 +242,6 @@ to setup-municipality-groups
 end
 
 
-to setup-scenarios
-  if Political-Scenario = "Green awareness"[
-    set change-in-openness 5
-    set change-in-variety  0
-  ]
-
-  if Political-Scenario = "Conservative push"[
-    set change-in-openness -5
-    set change-in-variety  0
-  ]
-
-  if Political-Scenario = "Division in public opinion"[
-    set change-in-openness 0
-    set change-in-variety 1.05
-  ]
-
-  if Political-Scenario = "Unity in public opinion"[
-    set change-in-openness 0
-    set change-in-variety 0.95
-  ]
-
-
-end
 
 ;;;;;;;;;;;;;;;;;;;;;;;; GO FUNCTION ;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -340,8 +319,8 @@ to external-factors
     output-print (word "POLITICAL: Year " current-year ": An election took place")
 
     ask municipalities [
-      set green-energy-openness green-energy-openness  + random-float 1 * change-in-openness
-      set political-variety  political-variety * (1 + random-float 1 * (1 - change-in-variety))
+      set green-energy-openness green-energy-openness * (1 + random-float 1 * (green-energy-openness-change / 100)) ; value from slider
+      set political-variety  political-variety * (1 + random-float 1 * (political-variety-change / 100))  ; value from slider
     ]
 
   ]
@@ -464,8 +443,8 @@ to manage-projects
         set vote-list lput (random-normal [green-energy-openness] of myself [political-variety] of myself) vote-list
       ]
 
-      ; Check for vote results
-      ifelse mean vote-list >= [acceptance-threshold] of project-to-discuss [
+      ; Check for vote results, and check if there is capacity there (not if it's a solar urban project)
+      ifelse mean vote-list >= [acceptance-threshold] of project-to-discuss AND ((count ([project-connections] of myself) with [project-phase = 0 AND owner = True]) < ([inhabitants] of myself * max-project-capacity / 10000) OR [project-type] of project-to-discuss = "solarpark-urban") [
         ; in case a project is accepted, assign one person working on the project
         if show-municipal-decisions [
           output-print (word "PROJECT ACCEPTED: " [project-type] of project-to-discuss " in " [name] of myself )
@@ -559,6 +538,7 @@ to manage-projects
 end
 
 
+
 to communicate-informally
 
   ; Exchange project-specific knowledge
@@ -609,7 +589,7 @@ end
 
 to conduct-meeting
 
-  if show-regional-decisions [
+  if show-regional-meetings [
     output-print (word "ADMINISTRATIVE NETWORK MEETING " meetings-conducted "/" administrative-network-meetings " started")
   ]
 
@@ -651,19 +631,18 @@ to conduct-meeting
       if (item 0 search-area) = "Greenhouse garden" [set greenhouse-area-trust search-area-trust]
 
 
-
-
-
-
-
-
       ; when search area is "Urban area": an information exchange occurs about urban solarparks alone
       if any? urban-experienced-municipalities AND any? urban-interested-municipalities [
         ask urban-interested-municipalities [
           ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
 
           ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
-          ask my-municipality-connections with [member? other-end urban-experienced-municipalities] [set trust min (list 100 (trust * 1.001))] ; the trust increases by 0.1%
+          ask my-municipality-connections with [member? other-end urban-experienced-municipalities] [set trust min (list 100 (trust * 1.0005))] ; the trust increases by 0.05%
+
+          ; print out that information exchange happened
+          if show-regional-meetings [
+            output-print (word "URBAN SOLAR: Information exchange between " count urban-interested-municipalities " interested municipalities and " count urban-experienced-municipalities " experienced municipalities" )
+          ]
         ]
       ]
 
@@ -674,8 +653,14 @@ to conduct-meeting
           ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
 
           ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
-          ask my-municipality-connections with [member? other-end solar-experienced-municipalities] [set trust min (list 100 (trust * 1.001))] ; the trust increases by 0.1%
+          ask my-municipality-connections with [member? other-end solar-experienced-municipalities] [set trust min (list 100 (trust * 1.0005))] ; the trust increases by 0.05%
         ]
+
+        ; print out that information exchange happened
+        if show-regional-meetings [
+          output-print (word "SOLAR PROJECTS: Information exchange between " count solar-interested-municipalities " interested municipalities and " count solar-experienced-municipalities " experienced municipalities" )
+        ]
+
       ]
 
       if any? wind-experienced-municipalities AND any? wind-interested-municipalities [
@@ -683,8 +668,14 @@ to conduct-meeting
           ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
 
           ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
-          ask my-municipality-connections with [member? other-end wind-experienced-municipalities] [set trust min (list 100 (trust * 1.001))] ; the trust increases by 0.1%
+          ask my-municipality-connections with [member? other-end wind-experienced-municipalities] [set trust min (list 100 (trust * 1.0005))] ; the trust increases by 0.05%
         ]
+
+        ; print out that information exchange happened
+        if show-regional-meetings [
+          output-print (word "WIND PROJECTS: Information exchange between " count wind-interested-municipalities " interested municipalities and " count wind-experienced-municipalities " experienced municipalities" )
+        ]
+
       ]
 
       ; in each meeting where an experienced (and thus, successful) municipality explains its project implementation, the green energy-openness of all the participating municipalities will increase
@@ -740,7 +731,6 @@ to-report current-renewable-production [project-category]
 
 
 end
-
 @#$#@#$#@
 GRAPHICS-WINDOW
 10
@@ -781,33 +771,23 @@ NIL
 T
 OBSERVER
 NIL
-NIL
+S
 NIL
 NIL
 1
 
-CHOOSER
-808
-44
-1091
-89
-Political-Scenario
-Political-Scenario
-"Base Case" "Conservative push" "Green awareness" "Division of public opinion" "Unity in public opinion"
-0
-
 OUTPUT
 562
-247
+266
 1098
 389
 13
 
 MONITOR
-561
-158
-618
-203
+563
+214
+620
+259
 Year
 current-year
 17
@@ -815,10 +795,10 @@ current-year
 11
 
 MONITOR
-620
-158
-677
-203
+622
+214
+679
+259
 Month
 current-month
 17
@@ -827,8 +807,8 @@ current-month
 
 PLOT
 1105
-249
-1273
+268
+1319
 388
 Political Overview
 Green Energy Openness
@@ -836,7 +816,7 @@ Count
 0.0
 100.0
 0.0
-10.0
+5.0
 true
 false
 "" ""
@@ -855,7 +835,7 @@ T
 T
 OBSERVER
 NIL
-NIL
+G
 NIL
 NIL
 1
@@ -881,25 +861,25 @@ PENS
 "Projects rejected" 1.0 0 -2674135 true "" "plot projects-rejected"
 
 SLIDER
-808
-92
-1091
-125
+807
+72
+1115
+105
 total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-15.0
+25.0
 1
 1
 per year
 HORIZONTAL
 
 SWITCH
-1140
-83
-1329
-116
+1151
+70
+1443
+103
 show-municipal-decisions
 show-municipal-decisions
 1
@@ -908,65 +888,65 @@ show-municipal-decisions
 
 SLIDER
 807
-128
-1092
-161
+33
+1114
+66
 administrative-network-meetings
 administrative-network-meetings
 0
 25
-12.0
+11.0
 1
 1
 per year
 HORIZONTAL
 
 SWITCH
-1140
-46
-1331
-79
-show-regional-decisions
-show-regional-decisions
+1151
+33
+1442
+66
+show-regional-meetings
+show-regional-meetings
 1
 1
 -1000
 
 TEXTBOX
-805
-27
-1116
-55
+809
+12
+1120
+40
 Levers -------------------------------------------
 11
 0.0
 1
 
 TEXTBOX
-1147
-22
-1418
-64
+1145
+10
+1416
+52
 Visuals -----------------------------------
 11
 0.0
 1
 
 TEXTBOX
-1116
-49
-1131
-189
-|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n
+1128
+29
+1143
+239
+|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n
 11
 0.0
 1
 
 SWITCH
-1279
-121
-1433
-154
+1290
+108
+1444
+141
 show-externalities
 show-externalities
 1
@@ -975,35 +955,35 @@ show-externalities
 
 SLIDER
 808
-164
-1094
-197
+109
+1115
+142
 informal-meetings-frequency
 informal-meetings-frequency
 0
-50
-50.0
+25
+4.0
 1
 1
 per year
 HORIZONTAL
 
 SWITCH
-1142
-160
-1330
-193
+1153
+147
+1445
+180
 show-municipal-network
 show-municipal-network
-0
+1
 1
 -1000
 
 SWITCH
-1142
-121
-1274
-154
+1153
+108
+1285
+141
 show-projects
 show-projects
 0
@@ -1011,9 +991,9 @@ show-projects
 -1000
 
 PLOT
-1211
+1207
 394
-1497
+1493
 559
 MW implemented
 NIL
@@ -1031,10 +1011,10 @@ PENS
 "Urban" 1.0 0 -7500403 true "" "plot current-renewable-production \"urban\""
 
 SLIDER
-561
-104
-733
-137
+563
+122
+772
+155
 end-year
 end-year
 2030
@@ -1068,6 +1048,72 @@ PENS
 "A20" 1.0 0 -6459832 true "" "plot A20-area-trust"
 "Greenhouse" 1.0 0 -1184463 true "" "plot greenhouse-area-trust"
 "Mean Trust in Region" 1.0 0 -10899396 true "" "plot regional-trust"
+
+SWITCH
+563
+159
+773
+192
+random-intial-trust
+random-intial-trust
+1
+1
+-1000
+
+SLIDER
+807
+146
+1114
+179
+green-energy-openness-change
+green-energy-openness-change
+-5
+5
+0.0
+1
+1
+%
+HORIZONTAL
+
+SLIDER
+808
+183
+1116
+216
+political-variety-change
+political-variety-change
+-5
+5
+0.0
+1
+1
+%
+HORIZONTAL
+
+TEXTBOX
+561
+103
+789
+131
+-------------------------------------
+11
+0.0
+1
+
+SLIDER
+808
+221
+1119
+254
+max-project-capacity
+max-project-capacity
+0
+25
+9.0
+1
+1
+per 10,000 inhabitants
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1616,7 +1662,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.2.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
