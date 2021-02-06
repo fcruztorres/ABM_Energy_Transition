@@ -20,6 +20,7 @@ globals [
   A20-area-trust
   greenhouse-area-trust
   regional-trust
+  trust-increase ; percentage expressed in decimals (e.g., 1.05 being 5% increase, 1.001 being 0.1% increase)
 ]
 
 
@@ -612,6 +613,7 @@ to conduct-meeting
     let solar-interested-municipalities (item 2 search-area) with [any? my-project-connections with [project-phase = 1 AND member? [project-type] of other-end (list "solarpark-small" "solarpark-medium" "solarpark-large")]]
     let wind-interested-municipalities (item 2 search-area) with [any? my-project-connections with [project-phase = 1 AND member? [project-type] of other-end (list "windpark-small" "windpark-medium" "windpark-large")]]
     let urban-interested-municipalities (item 2 search-area) with [any? my-project-connections with [project-phase = 1 AND [project-type] of other-end = "solarpark-urban"]]
+    set trust-increase 1.0005 ; trust will increase by 0.05% between experienced and interested municipalities at each meeting
 
 ;    show (word "interested municipalities:" [name] of interested-municipalities)
 ;    show (word "solar interested municipalities:" [name] of solar-interested-municipalities)
@@ -637,7 +639,7 @@ to conduct-meeting
           ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
 
           ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
-          ask my-municipality-connections with [member? other-end urban-experienced-municipalities] [set trust min (list 100 (trust * 1.0005))] ; the trust increases by 0.05%
+          ask my-municipality-connections with [member? other-end urban-experienced-municipalities] [set trust min (list 100 (trust * trust-increase))] ; the trust increases by 0.05%
 
           ; print out that information exchange happened
           if show-regional-meetings [
@@ -653,7 +655,7 @@ to conduct-meeting
           ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
 
           ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
-          ask my-municipality-connections with [member? other-end solar-experienced-municipalities] [set trust min (list 100 (trust * 1.0005))] ; the trust increases by 0.05%
+          ask my-municipality-connections with [member? other-end solar-experienced-municipalities] [set trust min (list 100 (trust * trust-increase))] ; the trust increases by 0.05%
         ]
 
         ; print out that information exchange happened
@@ -668,7 +670,7 @@ to conduct-meeting
           ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
 
           ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
-          ask my-municipality-connections with [member? other-end wind-experienced-municipalities] [set trust min (list 100 (trust * 1.0005))] ; the trust increases by 0.05%
+          ask my-municipality-connections with [member? other-end wind-experienced-municipalities] [set trust min (list 100 (trust * trust-increase))] ; the trust increases by 0.05%
         ]
 
         ; print out that information exchange happened
@@ -716,20 +718,16 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;; REPORTER FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-to-report current-renewable-production [project-category]
-  if project-category = "wind" [
-    report sum [installed-power] of projects with [active AND member? project-type (list "windpark-small" "windpark-medium" "windpark-large") ]
-  ]
+to-report current-wind-production
+  report sum [installed-power] of projects with [active AND member? project-type (list "windpark-small" "windpark-medium" "windpark-large")]
+end
 
-  if project-category = "solar" [
+to-report current-solar-production
     report sum [installed-power] of projects with [active AND member? project-type (list "solarpark-small" "solarpark-medium" "solarpark-large") ]
-  ]
+end
 
-  if project-category = "urban" [
+to-report current-urban-production
     report sum [installed-power] of projects with [active AND project-type = "solarpark-urban" ]
-  ]
-
-
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -1006,9 +1004,9 @@ true
 true
 "" ""
 PENS
-"Wind" 1.0 0 -11221820 true "" "plot current-renewable-production \"wind\""
-"Solar" 1.0 0 -1184463 true "" "plot current-renewable-production \"solar\""
-"Urban" 1.0 0 -7500403 true "" "plot current-renewable-production \"urban\""
+"Wind" 1.0 0 -11221820 true "" "plot current-wind-production"
+"Solar" 1.0 0 -1184463 true "" "plot current-solar-production"
+"Urban" 1.0 0 -7500403 true "" "plot current-urban-production"
 
 SLIDER
 563
@@ -1019,7 +1017,7 @@ end-year
 end-year
 2030
 2100
-2050.0
+2080.0
 5
 1
 NIL
@@ -1662,10 +1660,56 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.2.0
+NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
+<experiments>
+  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>count turtles</metric>
+    <enumeratedValueSet variable="green-energy-openness-change">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="random-intial-trust">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="informal-meetings-frequency">
+      <value value="4"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-externalities">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="total-project-proposal-frequency">
+      <value value="25"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-municipal-decisions">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="administrative-network-meetings">
+      <value value="11"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-project-capacity">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-municipal-network">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-regional-meetings">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-projects">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="political-variety-change">
+      <value value="0"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="end-year">
+      <value value="2080"/>
+    </enumeratedValueSet>
+  </experiment>
+</experiments>
 @#$#@#$#@
 @#$#@#$#@
 default
