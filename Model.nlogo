@@ -867,7 +867,7 @@ total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-25.0
+10.0
 1
 1
 per year
@@ -893,7 +893,7 @@ administrative-network-meetings
 administrative-network-meetings
 0
 25
-11.0
+0.0
 1
 1
 per year
@@ -960,7 +960,7 @@ informal-meetings-frequency
 informal-meetings-frequency
 0
 25
-4.0
+16.0
 1
 1
 per year
@@ -973,7 +973,7 @@ SWITCH
 180
 show-municipal-network
 show-municipal-network
-1
+0
 1
 -1000
 
@@ -984,7 +984,7 @@ SWITCH
 141
 show-projects
 show-projects
-0
+1
 1
 -1000
 
@@ -1017,7 +1017,7 @@ end-year
 end-year
 2030
 2100
-2080.0
+2095.0
 5
 1
 NIL
@@ -1054,7 +1054,7 @@ SWITCH
 192
 random-intial-trust
 random-intial-trust
-1
+0
 1
 -1000
 
@@ -1107,7 +1107,7 @@ max-project-capacity
 max-project-capacity
 0
 25
-9.0
+12.0
 1
 1
 per 10,000 inhabitants
@@ -1660,7 +1660,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.2.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
