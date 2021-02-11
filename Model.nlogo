@@ -21,7 +21,12 @@ globals [
   A20-area-trust
   greenhouse-area-trust
   regional-trust
-  trust-increase ; percentage expressed in decimals (e.g., 1.05 being 5% increase, 1.001 being 0.1% increase)
+  trust-increase-in-formal-meetings ; percentage expressed in decimals (e.g., 1.05 being 5% increase, 1.001 being 0.1% increase)
+  green-energy-openness-increase-in-formal-meetings ; percentage expressed in decimals (e.g., 1.05 being 5% increase, 1.001 being 0.1% increase)
+  trust-increase-in-informal-meetings ; percentage expressed in decimals
+  experience-scaling-factor ; integer
+  n-of-most-trusted-colleagues ; integer
+  percentage-delayed ; decimal
 ]
 
 
@@ -77,7 +82,12 @@ to setup
   set meetings-conducted 0
   set projects-proposed 0
   set projects-rejected 0
-
+  set trust-increase-in-formal-meetings 1.0005 ; trust will increase by 0.05% between experienced and interested municipalities at each meeting
+  set green-energy-openness-increase-in-formal-meetings 1.001 ; the green energy openness increases by 0.1%
+  set trust-increase-in-informal-meetings 1.01 ; increase by 1%
+  set experience-scaling-factor 20
+  set n-of-most-trusted-colleagues 3
+  set percentage-delayed 0.5
   setup-municipalities
   setup-informal-network
   setup-projects
@@ -432,7 +442,7 @@ to manage-projects
       let project-to-discuss other-end
 
       ; In 50% of the cases, the city council decision is delayed
-      if random-float 1 > 0.5 [
+      if random-float 1 > percentage-delayed [
         if show-municipal-decisions [
           output-print (word "PROJECT DELAYED: " [project-type] of project-to-discuss " in " [name] of myself)
         ]
@@ -512,7 +522,7 @@ to manage-projects
 
     ; Figure out if there are already active projects of the same type. If yes, gain 5% efficiency for each project that has already been successfully implemented
     let own-project-type [project-type] of other-end
-    let experience-factor ((count active-projects with [project-type = own-project-type]) / 20)
+    let experience-factor ((count active-projects with [project-type = own-project-type]) / experience-scaling-factor)
 
     set implementation-time-left max list 0  (implementation-time-left - (1 + experience-factor))
 
@@ -552,7 +562,7 @@ to communicate-informally
   ]
 
   ; Get municipality's friends, select the 3 best friends
-  let friend-connections max-n-of 3 my-municipality-connections [trust]
+  let friend-connections max-n-of n-of-most-trusted-colleagues my-municipality-connections [trust]
   let friends (turtle-set [other-end] of friend-connections) with [any? my-project-connections with [owner AND project-phase = 2 AND member? [project-type] of other-end own-projects]]
 
   ; Check if there are any friends that have already worked on a project
@@ -574,7 +584,7 @@ to communicate-informally
 
       ; increase trust between the two municipalities
       ask municipality-connection-with close-friend [
-        set trust min (list 100 (trust * 1.01)) ; increase by 1%
+        set trust min (list 100 (trust * trust-increase-in-informal-meetings)) ; increase by 1%
       ]
 
     ]
@@ -614,7 +624,6 @@ to conduct-meeting
     let solar-interested-municipalities (item 2 search-area) with [any? my-project-connections with [project-phase = 1 AND member? [project-type] of other-end (list "solarpark-small" "solarpark-medium" "solarpark-large")]]
     let wind-interested-municipalities (item 2 search-area) with [any? my-project-connections with [project-phase = 1 AND member? [project-type] of other-end (list "windpark-small" "windpark-medium" "windpark-large")]]
     let urban-interested-municipalities (item 2 search-area) with [any? my-project-connections with [project-phase = 1 AND [project-type] of other-end = "solarpark-urban"]]
-    set trust-increase 1.0005 ; trust will increase by 0.05% between experienced and interested municipalities at each meeting
 
 ;    show (word "interested municipalities:" [name] of interested-municipalities)
 ;    show (word "solar interested municipalities:" [name] of solar-interested-municipalities)
@@ -640,7 +649,7 @@ to conduct-meeting
           ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
 
           ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
-          ask my-municipality-connections with [member? other-end urban-experienced-municipalities] [set trust min (list 100 (trust * trust-increase))] ; the trust increases by 0.05%
+          ask my-municipality-connections with [member? other-end urban-experienced-municipalities] [set trust min (list 100 (trust * trust-increase-in-formal-meetings))] ; the trust increases by 0.05%
 
           ; print out that information exchange happened
           if show-regional-meetings [
@@ -656,7 +665,7 @@ to conduct-meeting
           ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
 
           ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
-          ask my-municipality-connections with [member? other-end solar-experienced-municipalities] [set trust min (list 100 (trust * trust-increase))] ; the trust increases by 0.05%
+          ask my-municipality-connections with [member? other-end solar-experienced-municipalities] [set trust min (list 100 (trust * trust-increase-in-formal-meetings))] ; the trust increases by 0.05%
         ]
 
         ; print out that information exchange happened
@@ -671,7 +680,7 @@ to conduct-meeting
           ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
 
           ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
-          ask my-municipality-connections with [member? other-end wind-experienced-municipalities] [set trust min (list 100 (trust * trust-increase))] ; the trust increases by 0.05%
+          ask my-municipality-connections with [member? other-end wind-experienced-municipalities] [set trust min (list 100 (trust * trust-increase-in-formal-meetings))] ; the trust increases by 0.05%
         ]
 
         ; print out that information exchange happened
@@ -682,7 +691,7 @@ to conduct-meeting
       ]
 
       ; in each meeting where an experienced (and thus, successful) municipality explains its project implementation, the green energy-openness of all the participating municipalities will increase
-      ask interested-municipalities [set green-energy-openness min (list 100 (green-energy-openness * 1.001))] ; the green energy openness increases by 0.1%
+      ask interested-municipalities [set green-energy-openness min (list 100 (green-energy-openness * green-energy-openness-increase-in-formal-meetings))] ; the green energy openness increases by 0.1%
 
 
 
@@ -868,7 +877,7 @@ total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-10.0
+12.0
 1
 1
 per year
@@ -894,7 +903,7 @@ administrative-network-meetings
 administrative-network-meetings
 0
 25
-0.0
+12.0
 1
 1
 per year
@@ -961,7 +970,7 @@ informal-meetings-frequency
 informal-meetings-frequency
 0
 25
-16.0
+12.0
 1
 1
 per year
@@ -1018,7 +1027,7 @@ end-year
 end-year
 2030
 2100
-2095.0
+2090.0
 5
 1
 NIL
@@ -1055,7 +1064,7 @@ SWITCH
 192
 random-intial-trust
 random-intial-trust
-0
+1
 1
 -1000
 
