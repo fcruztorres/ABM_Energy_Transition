@@ -280,7 +280,7 @@ to go
 
     set meetings-conducted meetings-conducted + 1
 
-    conduct-meeting
+    ;conduct-meeting
 
   ]
   ; update the mean trust between municipalities in the region
