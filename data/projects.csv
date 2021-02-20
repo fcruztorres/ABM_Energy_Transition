@@ -1,4 +1,4 @@
-type,capacity_[MW],lifespan_[y],threshold,n_samples,lead_time_[y],minimum_lead_time,description
+type,capacity_[MW],lifespan_[y],threshold,sample_size,lead_time_[y],minimum_lead_time,description
 solarpark-small,15,25,30,5,3,2,small solar photovoltaic power station
 windpark-small,5,25,30,5,5,4,small onshore wind park
 solarpark-medium,29,25,40,10,3.5,2.5,medium solar photovoltaic power station
