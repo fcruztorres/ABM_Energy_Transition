@@ -280,7 +280,8 @@ to go
 
     set meetings-conducted meetings-conducted + 1
 
-    ;conduct-meeting
+    if enable-formal-meetings [conduct-meeting]
+
 
   ]
   ; update the mean trust between municipalities in the region
@@ -742,12 +743,12 @@ end
 @#$#@#$#@
 GRAPHICS-WINDOW
 10
-24
-546
+14
+556
 561
 -1
 -1
-6.95
+7.08
 1
 10
 1
@@ -768,10 +769,10 @@ ticks
 30.0
 
 BUTTON
-557
-24
-770
-57
+565
+15
+778
+48
 Setup model run
 setup
 NIL
@@ -793,9 +794,9 @@ OUTPUT
 
 MONITOR
 563
-214
+215
 620
-259
+260
 Year
 current-year
 17
@@ -804,9 +805,9 @@ current-year
 
 MONITOR
 622
-214
+215
 679
-259
+260
 Month
 current-month
 17
@@ -832,10 +833,10 @@ PENS
 "green-energy-openness" 1.0 1 -13840069 true "" "histogram [green-energy-openness] of municipalities"
 
 BUTTON
-558
-61
-769
-94
+566
+53
+777
+86
 Start model run
 go
 T
@@ -983,7 +984,7 @@ SWITCH
 180
 show-municipal-network
 show-municipal-network
-0
+1
 1
 -1000
 
@@ -994,7 +995,7 @@ SWITCH
 141
 show-projects
 show-projects
-1
+0
 1
 -1000
 
@@ -1019,15 +1020,15 @@ PENS
 "Urban" 1.0 0 -7500403 true "" "plot current-urban-production"
 
 SLIDER
-563
-122
-772
-155
+565
+102
+774
+135
 end-year
 end-year
 2030
 2100
-2090.0
+2050.0
 5
 1
 NIL
@@ -1058,10 +1059,10 @@ PENS
 "Mean Trust in Region" 1.0 0 -10899396 true "" "plot regional-trust"
 
 SWITCH
-563
-159
-773
-192
+565
+139
+775
+172
 random-intial-trust
 random-intial-trust
 1
@@ -1092,17 +1093,17 @@ political-variety-change
 political-variety-change
 -5
 5
-0.0
+5.0
 1
 1
 %
 HORIZONTAL
 
 TEXTBOX
-561
-103
-789
-131
+567
+87
+795
+115
 -------------------------------------
 11
 0.0
@@ -1122,6 +1123,17 @@ max-project-capacity
 1
 per 10,000 inhabitants
 HORIZONTAL
+
+SWITCH
+564
+175
+775
+208
+enable-formal-meetings
+enable-formal-meetings
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1675,33 +1687,42 @@ NetLogo 6.1.1
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+  <experiment name="outcomes_with_and_without_formal_meetings" repetitions="1" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
-    <metric>count turtles</metric>
+    <metric>current-wind-production</metric>
+    <metric>current-solar-production</metric>
+    <metric>current-urban-production</metric>
+    <metric>count project-connections with [owner = True]</metric>
+    <metric>count projects with [active = True]</metric>
+    <metric>projects-rejected</metric>
+    <metric>regional-trust</metric>
+    <steppedValueSet variable="random-seed" first="0" step="1" last="5"/>
     <enumeratedValueSet variable="green-energy-openness-change">
+      <value value="-5"/>
       <value value="0"/>
+      <value value="5"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="random-intial-trust">
       <value value="false"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="informal-meetings-frequency">
-      <value value="4"/>
+      <value value="12"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="show-externalities">
       <value value="false"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="total-project-proposal-frequency">
-      <value value="25"/>
+      <value value="12"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="show-municipal-decisions">
       <value value="false"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="administrative-network-meetings">
-      <value value="11"/>
+      <value value="12"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="max-project-capacity">
-      <value value="9"/>
+      <value value="12"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="show-municipal-network">
       <value value="false"/>
@@ -1713,10 +1734,16 @@ NetLogo 6.1.1
       <value value="true"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="political-variety-change">
+      <value value="-5"/>
       <value value="0"/>
+      <value value="5"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="end-year">
-      <value value="2080"/>
+      <value value="2050"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="enable-formal-meetings">
+      <value value="true"/>
+      <value value="false"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
