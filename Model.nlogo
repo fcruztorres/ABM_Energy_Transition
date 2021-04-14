@@ -42,6 +42,7 @@ municipalities-own [
   green-energy-openness
   political-variety
   number-informal-meetings
+  fte
 ]
 
 projects-own [
@@ -94,6 +95,7 @@ to setup
   setup-municipality-groups
 
 
+
 end
 
 
@@ -126,6 +128,7 @@ to setup-municipalities
         set inhabitants item 1 data
         set green-energy-openness item 2 data
         set political-variety item 3 data
+        set fte item 4 data
         set number-informal-meetings 0
 
         set label name
@@ -793,10 +796,10 @@ OUTPUT
 13
 
 MONITOR
-563
-215
-620
-260
+1326
+290
+1383
+335
 Year
 current-year
 17
@@ -804,10 +807,10 @@ current-year
 11
 
 MONITOR
-622
-215
-679
-260
+1326
+340
+1383
+385
 Month
 current-month
 17
@@ -870,10 +873,10 @@ PENS
 "Projects rejected" 1.0 0 -2674135 true "" "plot projects-rejected"
 
 SLIDER
-807
-72
-1115
-105
+808
+217
+1116
+250
 total-project-proposal-frequency
 total-project-proposal-frequency
 1
@@ -964,9 +967,9 @@ show-externalities
 
 SLIDER
 808
-109
+69
 1115
-142
+102
 informal-meetings-frequency
 informal-meetings-frequency
 0
@@ -984,7 +987,7 @@ SWITCH
 180
 show-municipal-network
 show-municipal-network
-1
+0
 1
 -1000
 
@@ -1028,7 +1031,7 @@ end-year
 end-year
 2030
 2100
-2050.0
+2100.0
 5
 1
 NIL
@@ -1071,9 +1074,9 @@ random-intial-trust
 
 SLIDER
 807
-146
+144
 1114
-179
+177
 green-energy-openness-change
 green-energy-openness-change
 -5
@@ -1086,9 +1089,9 @@ HORIZONTAL
 
 SLIDER
 808
-183
+181
 1116
-216
+214
 political-variety-change
 political-variety-change
 -5
@@ -1110,10 +1113,10 @@ TEXTBOX
 1
 
 SLIDER
-808
-221
-1119
-254
+564
+213
+775
+246
 max-project-capacity
 max-project-capacity
 0
@@ -1134,6 +1137,21 @@ enable-formal-meetings
 0
 1
 -1000
+
+SLIDER
+807
+107
+1115
+140
+search-area-meetings
+search-area-meetings
+0
+50
+7.0
+1
+1
+per year
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1682,7 +1700,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.2.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@

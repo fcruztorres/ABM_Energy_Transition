@@ -1,24 +1,24 @@
-name,inhabitants,green energy openness,political variety
-Albrandswaard,25271,13.0,17.4
-Barendrecht,48673,20.0,12.8
-Brielle,17181,24.0,14.1
-Capelle aan den IJssel,66818,23.0,15.2
-Delft,101030,37.0,13.7
-s-Gravenhage,544766,29.0,19.5
-Hellevoetsluis,38778,21.0,12.4
-Krimpen aan den IJssel,29120,13.0,16.9
-Lansingerland,61601,20.0,14.3
-Leidschendam-Voorburg,107905,32.0,10.0
-Maassluis,32768,26.0,16.5
-Midden-Delfland,19391,14.0,16.0
-Nissewaard,84797,18.0,15.5
-Pijnacker-Nootdorp,54331,25.0,15.9
-Ridderkerk,45743,19.0,17.7
-Rotterdam,623642,29.0,19.0
-Rijswijk,53467,32.0,18.3
-Schiedam,77999,26.0,18.1
-Vlaardingen,72404,22.0,19.6
-Wassenaar,26211,20.0,16.1
-Westland,108603,11.0,12.3
-Westvoorne,14626,16.0,17.0
-Zoetermeer,124025,28.0,20.0
+name,inhabitants,green energy openness,political variety,FTE
+Albrandswaard,25271,13.0,17.4,0.5
+Barendrecht,48673,20.0,12.8,0.8
+Brielle,17181,24.0,14.1,0.2
+Capelle aan den IJssel,66818,23.0,15.2,1
+Delft,101030,37.0,13.7,3
+s-Gravenhage,544766,29.0,19.5,12
+Hellevoetsluis,38778,21.0,12.4,0.7
+Krimpen aan den IJssel,29120,13.0,16.9,0.5
+Lansingerland,61601,20.0,14.3,1.5
+Leidschendam-Voorburg,107905,32.0,10.0,2
+Maassluis,32768,26.0,16.5,0.5
+Midden-Delfland,19391,14.0,16.0,0.1
+Nissewaard,84797,18.0,15.5,0.9
+Pijnacker-Nootdorp,54331,25.0,15.9,0.5
+Ridderkerk,45743,19.0,17.7,0.7
+Rotterdam,623642,29.0,19.0,25
+Rijswijk,53467,32.0,18.3,1
+Schiedam,77999,26.0,18.1,1.2
+Vlaardingen,72404,22.0,19.6,1.1
+Wassenaar,26211,20.0,16.1,0.2
+Westland,108603,11.0,12.3,1.5
+Westvoorne,14626,16.0,17.0,0.1
+Zoetermeer,124025,28.0,20.0,2
