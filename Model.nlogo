@@ -409,11 +409,14 @@ to project-proposals-generation
         set shape "project-owner"
 
 
-        let desired-range list (random 40) (random 40)
-        set upper-threshold max desired-range
-        set lower-threshold min desired-range
-        set concession-stepsize random-float 2
-        set objective one-of (list "max" "min")
+        let stance get-stance true myself responsible-municipality
+
+        print stance
+
+        set lower-threshold item 0 stance
+        set upper-threshold item 1 stance
+        set concession-stepsize item 2 stance
+        set objective item 3 stance
         set accept-offer False
 
         ; Set the initial offer
@@ -429,6 +432,7 @@ to project-proposals-generation
 
 
       ; assign positive and negative externatities to the other municipalities
+
       create-project-connections-to n-of 2 item 2 search-area [
         set owner False
 
@@ -451,13 +455,15 @@ to project-proposals-generation
         ]
 
        ; Prepare for the negotiation
-        let desired-range list (random 80) (random 10)
-        set upper-threshold max desired-range
-        set lower-threshold min desired-range
-        set concession-stepsize random-float 10
-        set objective one-of (list "max" "min")
-        set accept-offer False
+        let stance get-stance false myself other-end
 
+        print stance
+
+        set lower-threshold item 0 stance
+        set upper-threshold item 1 stance
+        set concession-stepsize item 2 stance
+        set objective item 3 stance
+        set accept-offer False
 
 
         ifelse show-externalities [show-link ] [hide-link]
@@ -654,7 +660,6 @@ to conduct-meeting
 
 
   ; Negotiation part
-
   repeat rounds-per-meeting [
 
     ; Check if there is already a project that is being discussed, otherwise pick one randomly
@@ -687,6 +692,7 @@ to conduct-meeting
               ; Decrease trust in case the
               if member? self municipalities-involved [
                 print (word "Trust decrease between" [name] of self " and " [name] of myself)
+
               ]
             ]
           ]
@@ -701,11 +707,13 @@ to conduct-meeting
           ; Check if there is municipalities in the current negotiation that have not agreed to the current offer
           ifelse member? False [accept-offer] of my-project-connections [
 
+            ; create a variable to stop this round immediately if someone leaves the discussion
+            let someone-dropped-out False
+
             ; If yes, continue the negotiation and iterate over all parties involved
             ask my-project-connections [
 
-              ; create a variable to stop this round immediately if someone leaves the discussion
-              let someone-dropped-out False
+
 
               ; Check if offer list already has some offers
               ifelse length [offer-list] of myself  = 0 [
@@ -778,6 +786,10 @@ to conduct-meeting
 
 
             ]
+
+
+
+
           ][
 
             ; If all municipalities have accepted the last offer implement the project with a given municipality
@@ -787,6 +799,17 @@ to conduct-meeting
             set project-phase 1
 
             ; Increase the trust between all parties involved
+            let municipalities-involved turtle-set [other-end] of my-project-connections
+
+            ask municipalities-involved [
+              ; Iterate over all municipality connections
+              ask turtle-set [other-end] of my-municipality-connections [
+                ; Increase trust
+                if member? self municipalities-involved [
+                  print (word "Trust increase between" [name] of self " and " [name] of myself)
+                ]
+              ]
+            ]
 
           ]
 
@@ -925,47 +948,95 @@ to make-new-offer [project-id offer]
 end
 
 
-to-report get-thresholds [a-municipality a-project]
+to-report get-stance [project-owner? a-project my-municipality]
 
   let concession-step 0
   let upper-threshold 0
   let lower-threshold 0
   let objective ""
 
-  let inh [inhabitants] of a-municipality
-  let geo [green-energy-openness] of a-municipality
+  let inh [inhabitants] of my-municipality
+  let geo [green-energy-openness] of my-municipality
 
-
-  ; Distinguish between wind and solar projects
+  ; Determine the concession step and the range
   if member? "wind" [project-type] of a-project [
-    set concession-step 5 ; 5MW, which equals to one windturbine
+
+    let concession-factor (0.000001642036 * inh + 0.9770115)
+    set concession-factor round concession-factor
+    set concession-step (10 / concession-factor) ; 5 or 10MW, which equals to one or two windturbines
+
+    ; All municipalities will have 0 as a lower threshold for wind projects
+    set lower-threshold 0
+
+    ; Desired number of windmills is the largest windpark (6 turbines) in case of a high green energy openness and 0 windmills in case of a low green energy openness
+    let number-windmills round (6 * (geo / 100))
+
+    set upper-threshold (number-windmills * 5) ; 5MW per windmill
 
   ]
 
   ; In case the project is solar
   if member? "solar" [project-type] of a-project [
 
-    ; original concession step is 90KW (25 percental of all solar projects implemented in 2019)
-    set concession-step 0.09 ; 90KW negotiation size
+    ; original maximum concession step is 150KW (50 percentile of  solar projects implemented in 2019 in Zuid Holland)
+    set concession-step 0.15 ; 90KW negotiation size
 
     ; Inhabitants influence the concession stepsize in a linear way
+    ; Linear interpolation based on the smallest and biggest municipality
+    ; Assuption: Larger municipalities have more (soft) power to push through their interest and are thus willing to make less concessions
+    ; Linear function returns values between 1 (smallest municipality) and 2 (largest municipality)
     let concession-factor (0.000001642036 * inh + 0.9770115)
 
     ; High and low green energy openness concession influece is modelled with a parabola
+    ; A very low and a very high green energy openness will result in less concessions due to strong believes in a certain direction.
+    ; Function is a parabola that returns 2 in case the green energy openness is 0 or 100; and 1 in case the green energy openness is 50
     set concession-factor concession-factor * (2 - 0.04 * geo + 0.0004 * geo)
+
+    ; Set the final concession step based on the maximal concession step and the factor as calculated by the two formulas above.
     set concession-step concession-step / concession-factor
+
+
+    ; Determine the range
+    let max-solar-project-size 5
+
+    ifelse project-owner? [
+      set lower-threshold 0
+      set upper-threshold round (max-solar-project-size * (geo / 100))
+    ][
+      ; For non project owners, at least a small solar park should be implemented
+      set lower-threshold 0.06
+      set upper-threshold 0.06 + precision ((max-solar-project-size - 0.06) * (geo / 100)) 2
+    ]
   ]
 
 
   ; Determine the objective
-  if [green-energy-openness] of a-municipality > 20 [
+  ; If a project owner is the municipality
+  ifelse project-owner? [
+    ifelse member? "solar" [project-type] of a-project [
 
+      ; In case green energy openness is greater than 33%, try to maximize your range, otherwise try to minimize it
+      ifelse geo > 33[
+        set objective "max"
+      ][
+        set objective "min"
+      ]
+    ][
+      ; In case the project is about wind, always try to minimize the impact
+      set objective "min"
+    ]
 
+  ][
+    ; If a project owner is not the municipality, always try to maximize the renewable energy projects of other municipalities
+    set objective "max"
   ]
 
 
+  ; Determine the range
 
-  report (list concession-step upper-threshold lower-threshold objective)
+
+
+  report (list lower-threshold upper-threshold concession-step objective)
 
 end
 
@@ -1425,7 +1496,7 @@ search-area-meetings
 search-area-meetings
 0
 50
-7.0
+50.0
 1
 1
 per year
