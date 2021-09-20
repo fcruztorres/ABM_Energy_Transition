@@ -62,6 +62,7 @@ projects-own [
   project-priority ; assigned to filter which projects to discuss
   offer-list ; list of all the offers and trade-offs involved in this project, including the municipality that made an offer
   negotiation-failed ; boolean, whether the municipalities managed to come to an agreement
+  last-counteroffer ; municipality that made the last counteroffer, variable to identify that the last offer wasn't made by the same municipality
 ]
 
 
@@ -698,11 +699,13 @@ to conduct-meeting
           ]
 
         ][
-          ; In case the negotiation is still ongoing, continue with it
-          if show-regional-meetings [output-print (word "Issue discussion continues: Round " rounds-discussed " for " project-type " (Project ID " who ")")]
+
 
           ; Increase counter for round discussed
           set rounds-discussed rounds-discussed + 1
+
+          ; In case the negotiation is still ongoing, continue with it
+          if show-regional-meetings [output-print (word "Issue discussion continues: Round " rounds-discussed " for " project-type " (Project ID " who ")")]
 
           ; Check if there is municipalities in the current negotiation that have not agreed to the current offer
           ifelse member? False [accept-offer] of my-project-connections [
@@ -732,6 +735,9 @@ to conduct-meeting
                 set offer (list [who] of other-end offer)
                 make-new-offer [who] of myself offer
 
+                ask myself [
+                  set last-counteroffer [name] of other-end
+                ]
 
 
               ][
@@ -755,8 +761,13 @@ to conduct-meeting
                     set offer min (list (offer + concession-stepsize) upper-threshold) ][
                     set offer max (list (offer - concession-stepsize) lower-threshold) ]
 
-                  ; Check if a municipality is still willing to make concessions
-                  ifelse offer = last-offer [
+                  ask myself [
+                    set last-counteroffer [name] of other-end
+                  ]
+
+
+                  ; Check if a municipality is still willing to make concessions (given that the last counteroffer was from someone else
+                  ifelse (offer = last-offer) and ([last-counteroffer] of myself != [name] of other-end) [
                     ; In case not, drop the negotiation
 
 
