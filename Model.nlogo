@@ -646,10 +646,52 @@ to communicate-informally
         set trust min (list 100 (trust * trust-increase-in-informal-meetings)) ; increase by 1%
       ]
 
+
+    ]
+  ]
+
+  ; when a municipality who is the owner of a project is also discussing it in the administrative network meetings (project phase = 0 and project priority is > 0)
+  ; it forms a coalition with other municipalities with whom it developed a high trust until then. Concretely, this means that their upper and lower thresholds
+  ; for the negotiation on that project become aligned.
+  if [owner] of my-project-connections = True and [project-phase] of my-project-connections = 0 and [project-priority] of my-project-connections  > 0 [
+
+    ; identify the project being discussed
+    let project-discussed [other-end] of my-project-connections
+
+    ; identify the project owner's most trusted friends
+    let owner-friend-connections max-n-of n-of-most-trusted-colleagues my-municipality-connections [trust]
+    let owner-friends (turtle-set [other-end] of owner-friend-connections) with [any? my-project-connections with [owner AND [project-phase] of other-end = 2 AND member? [project-type] of other-end own-projects]]
+
+    if any? owner-friends [
+      ask owner-friends [
+
+        ; identify friends' projects
+        let owner-friend-projects [other-end] of my-project-connections
+
+        ; The friends need to create a link with the project if there isn't already a link between the friends and the project being discussed
+        if not member? project-discussed owner-friend-projects [
+          create-project-connections-from project-discussed
+        ]
+
+        ; select the link between the friends and the project being discussed
+        let project-discussed-connection my-project-connections with [other-end = project-discussed]
+
+        ; if the friends were not negatively affected by a project being discussed
+        if [negatively-affected] of project-discussed-connection = False [
+          ask [other-end] of project-discussed-connection [
+
+            ; align thresholds of friends to the project owner's ones
+            set upper-threshold [upper-threshold] of project-discussed
+            set lower-threshold [lower-threshold] of project-discussed
+          ]
+        ]
+      ]
     ]
   ]
 
 end
+
+
 
 
 
@@ -766,8 +808,8 @@ to conduct-meeting
                   ]
 
 
-                  ; Check if a municipality is still willing to make concessions (given that the last counteroffer was from someone else
-                  ifelse (offer = last-offer) and ([last-counteroffer] of myself != [name] of other-end) [
+                  ; Check if a municipality is still willing to make concessions (given that the last counteroffer was from someone else; and ([last-counteroffer] of myself != [name] of other-end)
+                  ifelse (offer = last-offer)  [
                     ; In case not, drop the negotiation
 
 
@@ -1242,7 +1284,7 @@ total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-2.0
+3.0
 1
 1
 per year
@@ -1268,7 +1310,7 @@ administrative-network-meetings
 administrative-network-meetings
 0
 25
-12.0
+11.0
 1
 1
 per year
@@ -1335,7 +1377,7 @@ informal-meetings-frequency
 informal-meetings-frequency
 0
 25
-12.0
+11.0
 1
 1
 per year
@@ -1441,7 +1483,7 @@ green-energy-openness-change
 green-energy-openness-change
 -5
 5
-0.0
+1.0
 1
 1
 %
@@ -1456,7 +1498,7 @@ political-variety-change
 political-variety-change
 -5
 5
-5.0
+4.0
 1
 1
 %
