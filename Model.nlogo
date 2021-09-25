@@ -86,6 +86,7 @@ project-connections-own [
   objective ; either "max" or "min", indicating in which direction a municipality would like to see the negotiation going
   last-offer ; attribute to save the last offer a specific municipality has made
   accept-offer ; indicator whether a municipality is willing to accept the latest offer made
+  created-during-informal-communication ; indicator (True/False of weather the link was generated during an informal communication between municipalities)
 
 ]
 
@@ -435,6 +436,7 @@ to project-proposals-generation
 
       create-project-connections-to n-of 2 item 2 search-area [
         set owner False
+        set created-during-informal-communication False
 
         ; a project can have positive, negative or no externalities on another municipality
         let dice random 3
@@ -645,10 +647,70 @@ to communicate-informally
         set trust min (list 100 (trust * trust-increase-in-informal-meetings)) ; increase by 1%
       ]
 
+
     ]
   ]
 
+  ; when a municipality who is the owner of a project is also discussing it in the administrative network meetings (project phase = 0 and project priority is > 0)
+  ; it forms a coalition with other municipalities with whom it developed a high trust until then. Concretely, this means that their upper and lower thresholds
+  ; for the negotiation on that project align across municipalities.
+
+  ; identify the project being discussed
+  let projects-owned turtle-set [other-end] of my-project-connections with [owner = True]
+  let project-under-discussion projects-owned with [project-phase = 0 AND project-priority = 100]
+
+
+  if any? project-under-discussion [
+    ask project-under-discussion [
+
+      ; identify the owner of the project being discussed (if any, it will only be one because only one project at a time is discussed in the conduct-meeting procedure)
+      let owner-of-project-under-discussion turtle-set [other-end] of my-project-connections with [owner = True]
+      let project-under-discussion-owner-connection my-project-connections with [owner = True]
+
+      ask owner-of-project-under-discussion [
+
+        ; identify the project owner's most trusted friends
+        let owner-friends-connections max-n-of n-of-most-trusted-colleagues my-municipality-connections [trust]
+        let owner-friends (turtle-set [other-end] of owner-friends-connections)
+
+        ask owner-friends [
+
+          ; identify friends' projects
+          let owner-friends-projects turtle-set [other-end] of my-project-connections
+
+
+          ; friends need to create a link with the project if there isn't already a link between the friends and the project being discussed
+          if not any? owner-friends-projects OR not member? one-of project-under-discussion owner-friends-projects [  ; one-of is used to turn the agentset of 1 turtle (project-under-discussion) into a single agent
+            create-project-connections-from project-under-discussion [
+              set owner False
+              set created-during-informal-communication True]
+          ]
+
+          ; select the link between the friends and the project being discussed
+          let project-under-discussion-friends-connections my-project-connections with [other-end = one-of project-under-discussion]
+
+          ; if the friends were not negatively affected by a project being discussed
+          if [negatively-affected] of project-under-discussion-friends-connections != True [
+
+
+            ; align thresholds of friends to the project owner's ones
+            ask project-under-discussion-friends-connections [
+              set upper-threshold item 0 [upper-threshold] of project-under-discussion-owner-connection
+              set lower-threshold item 0 [lower-threshold] of project-under-discussion-owner-connection
+              output-print (word "ALIGNMENT BETWEEN " one-of owner-of-project-under-discussion " and " one-of owner-friends )
+
+
+            ]
+          ]
+        ]
+      ]
+    ]
+  ]
+
+
 end
+
+
 
 
 
@@ -829,7 +891,9 @@ to conduct-meeting
       ]
 
     ]
+    ask project-connections with [created-during-informal-communication = True] [die]
   ]
+
 
 
 
@@ -1244,7 +1308,7 @@ SWITCH
 103
 show-municipal-decisions
 show-municipal-decisions
-1
+0
 1
 -1000
 
@@ -1270,7 +1334,7 @@ SWITCH
 66
 show-regional-meetings
 show-regional-meetings
-0
+1
 1
 -1000
 
@@ -1381,7 +1445,7 @@ end-year
 end-year
 2030
 2100
-2030.0
+2050.0
 5
 1
 NIL
@@ -1511,7 +1575,7 @@ rounds-per-meeting
 rounds-per-meeting
 0
 15
-7.0
+4.0
 1
 1
 NIL
