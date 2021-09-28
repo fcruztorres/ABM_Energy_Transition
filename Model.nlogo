@@ -383,21 +383,21 @@ to project-proposals-generation
   repeat round (total-project-proposal-frequency - projects-proposed) / (13 - current-month) [
     let search-area-selected False
 
-    ; Randomly get a number (min 1 and max 1371, being the combined potential of the search areas
-    let random-selector (random 647) + 724
+    ; Randomly get a number (min 1 and max 647, being the combined potential of the search areas
+    let random-selector random 647
 
-    ; Use that number to select one of the search areas (selected by the potential each search area has
+    ; Use that number to select one of the search areas (selected by the potential each search area has in the concept energy strategy)
     let search-area 0
 
-;    set search-area (ifelse-value
-;      random-selector < 724 [item 0 search-areas] ; A4 area
-;      )
-;
-    if random-selector > 724 [set search-area item 0 search-areas] ; A4 area
-    if random-selector > 858 [set search-area item 1 search-areas] ; A12 area
-    if random-selector > 872 [set search-area item 2 search-areas] ; A20 area
-    if random-selector > 1013 [set search-area item 3 search-areas] ; A15 area
-    if random-selector > 1318 [set search-area item 4 search-areas] ; Greenhouse garden areas
+    set search-area (ifelse-value
+      random-selector < 134 [item 0 search-areas] ; A4 area
+      random-selector < 148 [item 1 search-areas] ; A12 area
+      random-selector < 289 [item 2 search-areas] ; A20 area
+      random-selector < 594 [item 3 search-areas] ; A15 area
+      random-selector < 647 [item 4 search-areas] ; Greenhouse garden areas
+
+      )
+
 
     ; Select the project type that is about to be implemented
     let proposed-project-type one-of item 1 search-area
@@ -417,7 +417,6 @@ to project-proposals-generation
 
       ; create project connection to the owner
       create-project-connection-to responsible-municipality [
-        ; set project-phase 0 ; to indicate that the project is proposed
         set implementation-time-left [implementation-time] of myself ; needs to be the lead-time from the csv
         set positively-affected True ; a municipality responsible is assumed to benefit from a project automatically
         set owner True ; set the municipality to the "responsible" municipality
@@ -1092,7 +1091,7 @@ to-report select-project-to-be-discussed
       ask one-of projects with [project-phase = 0 AND any? my-project-connections and negotiation-failed = False] [
         set project-priority 100
 
-        output-print (word "A new project started to be discussed: " self " (" project-type ")")
+        if show-regional-meetings [output-print (word "A new project started to be discussed: " self " (" project-type ")")]
       ]
     ]
   ]
@@ -1410,7 +1409,7 @@ SWITCH
 67
 show-regional-meetings
 show-regional-meetings
-0
+1
 1
 -1000
 
@@ -1521,7 +1520,7 @@ end-year
 end-year
 2030
 2100
-2055.0
+2075.0
 5
 1
 NIL
@@ -1570,7 +1569,7 @@ green-energy-openness-change
 green-energy-openness-change
 -5
 5
-0.0
+1.0
 1
 1
 %
