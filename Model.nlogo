@@ -726,7 +726,8 @@ to communicate-informally
           ]
         ]
       ]
-
+    ]
+  ]
 
 
 
@@ -1304,7 +1305,6 @@ OUTPUT
 13
 
 MONITOR
-
 15
 101
 72
@@ -1331,7 +1331,6 @@ PLOT
 375
 1336
 520
-
 Political Overview
 Green Energy Openness
 Count
@@ -1378,9 +1377,7 @@ true
 true
 "" ""
 PENS
-
 "Projects accepted in formal meetings" 1.0 0 -16777216 true "" "plot projects-accepted"
-
 "Active projects" 1.0 0 -14439633 true "" "plot count projects with [active = True]"
 "Projects rejected" 1.0 0 -2674135 true "" "plot projects-rejected"
 
@@ -1750,7 +1747,6 @@ enable-shocks
 1
 -1000
 
-
 TEXTBOX
 896
 64
@@ -1770,18 +1766,6 @@ TEXTBOX
 11
 0.0
 1
-
-SWITCH
-1154
-185
-1445
-218
-show-informal-communication-alignments
-show-informal-communication-alignments
-1
-1
--1000
-
 
 @#$#@#$#@
 ## WHAT IS IT?
