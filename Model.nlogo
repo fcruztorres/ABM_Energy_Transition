@@ -107,6 +107,7 @@ to setup
   set projects-proposed 0
   set projects-rejected 0
   set projects-agreed-in-administrative-meeting 0
+
   set trust-increase-in-formal-meetings 1.0005 ; trust will increase by 0.05% between experienced and interested municipalities at each meeting
   set green-energy-openness-increase-in-formal-meetings 1.001 ; the green energy openness increases by 0.1%
   set trust-increase-in-informal-meetings 1.01 ; increase by 1%
@@ -296,7 +297,7 @@ to go
   if (current-year > end-year)[ stop ]
 
   ; Handle the shocks
-  if enable-shocks [shock 2025 1]
+  if enable-shocks [shock 2027 7 1]
 
   ; Handle the external factors
   external-factors
@@ -417,9 +418,10 @@ to project-proposals-generation
       ]
 
 
+      let search-area-municipalities item 2 search-area
 
       ; pick one municipality out of the search area as a project owner
-      let responsible-municipality one-of item 2 search-area
+      let responsible-municipality one-of search-area-municipalities
 
       ; create project connection to the owner
       create-project-connection-to responsible-municipality [
@@ -452,10 +454,13 @@ to project-proposals-generation
 
       ]
 
+      ; Remove the project owner from possible externalally affected municipalities
+      set search-area-municipalities turtle-set remove responsible-municipality (list search-area-municipalities)
+
 
       ; assign positive and negative externatities to the other municipalities
 
-      create-project-connections-to n-of 2 item 2 search-area [
+      create-project-connections-to n-of 2 search-area-municipalities [
         set owner False
         set created-during-informal-communication False
 
@@ -1176,16 +1181,17 @@ end
 
 
 
-to shock [desired-year desired-month]
+to shock [desired-year desired-month shock-number]
 
   if current-year = desired-year and current-month = desired-month [
-    ; Decrease all trust values
-    ask municipality-connections [
 
-      set trust 0.1 * trust ; decrease trust to 10% of the previous value
-
-
+    if shock-number = 1 [
+      ; Decrease all trust values
+      ask municipality-connections [
+        set trust 0.1 * trust ; decrease trust to 10% of the previous value
+      ]
     ]
+
 
   ]
 
@@ -1247,10 +1253,10 @@ to-report get-desired-range [municipality-id type-of-project owner-of-project]
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-10
-14
-556
-561
+13
+150
+559
+697
 -1
 -1
 7.08
@@ -1274,10 +1280,10 @@ ticks
 30.0
 
 BUTTON
-565
 15
-778
-48
+20
+228
+53
 Setup model run
 setup
 NIL
@@ -1291,19 +1297,18 @@ NIL
 1
 
 OUTPUT
-562
-266
-1098
-542
+572
+374
+1108
+697
 13
 
 MONITOR
 
-1339
-293
-1396
-338
-
+15
+101
+72
+146
 Year
 current-year
 17
@@ -1311,12 +1316,10 @@ current-year
 11
 
 MONITOR
-
-1339
-343
-1396
-388
-
+81
+102
+138
+147
 Month
 current-month
 17
@@ -1324,11 +1327,10 @@ current-month
 11
 
 PLOT
-
-1118
-271
-1332
-391
+1122
+375
+1336
+520
 
 Political Overview
 Green Energy Openness
@@ -1344,10 +1346,10 @@ PENS
 "green-energy-openness" 1.0 1 -13840069 true "" "histogram [green-energy-openness] of municipalities"
 
 BUTTON
-566
-53
-777
-86
+16
+58
+227
+91
 Start model run
 go
 T
@@ -1361,10 +1363,10 @@ NIL
 1
 
 PLOT
-1118
-398
-1618
-563
+1119
+531
+1619
+696
 Projects overview
 Tick
 Number Projects
@@ -1383,25 +1385,25 @@ PENS
 "Projects rejected" 1.0 0 -2674135 true "" "plot projects-rejected"
 
 SLIDER
-806
-185
-1114
-218
+585
+182
+871
+215
 total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-16.0
+17.0
 1
 1
 per year
 HORIZONTAL
 
 SWITCH
-1463
-71
-1755
-104
+1303
+97
+1595
+130
 show-municipal-decisions
 show-municipal-decisions
 0
@@ -1409,10 +1411,10 @@ show-municipal-decisions
 -1000
 
 SLIDER
-1149
-39
-1418
-72
+937
+222
+1242
+255
 administrative-network-meetings
 administrative-network-meetings
 0
@@ -1424,51 +1426,51 @@ per year
 HORIZONTAL
 
 SWITCH
-1463
-34
-1754
-67
+1303
+60
+1594
+93
 show-regional-meetings
 show-regional-meetings
-1
+0
 1
 -1000
 
 TEXTBOX
-809
-12
-1120
-40
+939
+36
+1250
+64
 Levers -------------------------------------------
 11
 0.0
 1
 
 TEXTBOX
-1457
-11
-1728
-53
+1297
+37
+1568
+79
 Visuals -----------------------------------
 11
 0.0
 1
 
 TEXTBOX
-1130
-24
-1145
-234
-|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n
+1269
+61
+1284
+327
+|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|
 11
 0.0
 1
 
 SWITCH
-1602
-109
-1756
-142
+1441
+215
+1595
+248
 show-externalities
 show-externalities
 1
@@ -1476,10 +1478,10 @@ show-externalities
 -1000
 
 SLIDER
-806
-37
-1113
-70
+936
+61
+1243
+94
 informal-meetings-frequency
 informal-meetings-frequency
 0
@@ -1491,10 +1493,10 @@ per year
 HORIZONTAL
 
 SWITCH
-1465
-148
-1655
-181
+1303
+136
+1594
+169
 show-municipal-network
 show-municipal-network
 0
@@ -1502,10 +1504,10 @@ show-municipal-network
 -1000
 
 SWITCH
-1465
-109
-1597
-142
+1304
+215
+1436
+248
 show-projects
 show-projects
 1
@@ -1513,10 +1515,10 @@ show-projects
 -1000
 
 PLOT
-882
-572
-1168
-737
+1627
+377
+1913
+693
 MW implemented
 NIL
 NIL
@@ -1530,28 +1532,27 @@ true
 PENS
 "Wind" 1.0 0 -11221820 true "" "plot current-wind-production"
 "Solar" 1.0 0 -1184463 true "" "plot current-solar-production"
-"Urban" 1.0 0 -7500403 true "" "plot current-urban-production"
 
 SLIDER
-565
-116
-774
-149
+585
+64
+871
+97
 end-year
 end-year
 2030
 2100
-2075.0
+2050.0
 5
 1
 NIL
 HORIZONTAL
 
 PLOT
-564
-573
-871
-738
+1352
+375
+1620
+525
 search areas' mean trust
 Tick
 Mean Trust
@@ -1571,21 +1572,21 @@ PENS
 "Mean Trust in Region" 1.0 0 -10899396 true "" "plot regional-trust"
 
 SWITCH
-565
-153
-775
-186
+585
+272
+871
+305
 random-intial-trust
 random-intial-trust
-1
+0
 1
 -1000
 
 SLIDER
-805
-112
-1112
-145
+584
+103
+872
+136
 green-energy-openness-change
 green-energy-openness-change
 -5
@@ -1597,50 +1598,50 @@ green-energy-openness-change
 HORIZONTAL
 
 SLIDER
-806
-149
-1114
-182
+585
+142
+870
+175
 political-variety-change
 political-variety-change
 -5
 5
-2.0
+1.0
 1
 1
 %
 HORIZONTAL
 
 TEXTBOX
-567
-87
-795
-115
--------------------------------------
+585
+36
+900
+64
+Uncertainties -------------------------------------
 11
 0.0
 1
 
 SLIDER
-805
-222
-1115
-255
+933
+142
+1243
+175
 max-project-capacity
 max-project-capacity
 0
 25
-25.0
+14.0
 1
 1
 per 10,000 inhabitants
 HORIZONTAL
 
 SWITCH
-564
-189
-775
-222
+584
+308
+871
+341
 enable-formal-meetings
 enable-formal-meetings
 0
@@ -1648,10 +1649,10 @@ enable-formal-meetings
 -1000
 
 SLIDER
-805
-75
-1113
-108
+935
+99
+1243
+132
 search-area-meetings
 search-area-meetings
 0
@@ -1663,101 +1664,112 @@ per year
 HORIZONTAL
 
 SLIDER
-1150
-78
-1421
-111
+938
+261
+1245
+294
 rounds-per-meeting
 rounds-per-meeting
 0
 15
-3.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-1150
-115
-1419
-148
-agreement-factor
-agreement-factor
-1
-10
-3.0
-1
-1
-NIL
-HORIZONTAL
-
-SWITCH
-1464
-186
-1649
-219
-show-trust-changes
-show-trust-changes
-1
-1
--1000
-
-TEXTBOX
-1152
-13
-1416
-55
-Negotiations --------------------------
-11
-0.0
-1
-
-TEXTBOX
-1434
-35
-1449
-217
-|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|
-11
-0.0
-1
-
-SLIDER
-1150
-154
-1418
-187
-max-rounds-before-failed
-max-rounds-before-failed
-0
-25
 9.0
 1
 1
 NIL
 HORIZONTAL
 
+SLIDER
+584
+221
+872
+254
+agreement-factor
+agreement-factor
+1
+10
+5.0
+1
+1
+NIL
+HORIZONTAL
+
+SWITCH
+1303
+175
+1594
+208
+show-trust-changes
+show-trust-changes
+0
+1
+-1000
+
 TEXTBOX
-1464
-244
-1724
+938
+194
+1202
+236
+Negotiations Levers ------------------
+11
+0.0
+1
+
+SLIDER
+937
+303
+1243
+336
+max-rounds-before-failed
+max-rounds-before-failed
+0
+25
+11.0
+1
+1
+NIL
+HORIZONTAL
+
+TEXTBOX
 286
+34
+546
+76
 Shocks ------------------------------
 11
 0.0
 1
 
 SWITCH
-1466
-268
-1614
-301
+288
+58
+509
+91
 enable-shocks
 enable-shocks
-1
+0
 1
 -1000
+
+
+TEXTBOX
+896
+64
+911
+330
+|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|
+11
+0.0
+1
+
+TEXTBOX
+551
+54
+566
+124
+|\n|\n|\n|\n|\n
+11
+0.0
+1
 
 SWITCH
 1154
@@ -1769,6 +1781,7 @@ show-informal-communication-alignments
 1
 1
 -1000
+
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -2379,6 +2392,134 @@ NetLogo 6.2.0
     <enumeratedValueSet variable="enable-formal-meetings">
       <value value="true"/>
       <value value="false"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>count turtles</metric>
+    <enumeratedValueSet variable="search-area-meetings">
+      <value value="31"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="random-intial-trust">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="enable-shocks">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-municipal-decisions">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rounds-per-meeting">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="agreement-factor">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-regional-meetings">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="political-variety-change">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="green-energy-openness-change">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-trust-changes">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="enable-formal-meetings">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="informal-meetings-frequency">
+      <value value="11"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="total-project-proposal-frequency">
+      <value value="17"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-externalities">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="administrative-network-meetings">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-project-capacity">
+      <value value="14"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-rounds-before-failed">
+      <value value="11"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-municipal-network">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="end-year">
+      <value value="2090"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-projects">
+      <value value="true"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="123" repetitions="50" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>count turtles</metric>
+    <steppedValueSet variable="search-area-meetings" first="1" step="30" last="5"/>
+    <enumeratedValueSet variable="random-intial-trust">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="enable-shocks">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-municipal-decisions">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rounds-per-meeting">
+      <value value="9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="agreement-factor">
+      <value value="5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-regional-meetings">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="political-variety-change">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="green-energy-openness-change">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-trust-changes">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="enable-formal-meetings">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="informal-meetings-frequency">
+      <value value="11"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="total-project-proposal-frequency">
+      <value value="17"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-externalities">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="administrative-network-meetings">
+      <value value="12"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-project-capacity">
+      <value value="14"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-rounds-before-failed">
+      <value value="11"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-municipal-network">
+      <value value="true"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="end-year">
+      <value value="2090"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="show-projects">
+      <value value="true"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
