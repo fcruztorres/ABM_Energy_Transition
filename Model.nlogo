@@ -14,13 +14,15 @@ globals [
 
   projects-proposed
   projects-rejected
-  urban-area-trust
+  projects-accepted
+
+
   A4-area-trust
   A12-area-trust
   A15-area-trust
   A20-area-trust
-  greenhouse-area-trust
   regional-trust
+
   trust-increase-in-formal-meetings ; percentage expressed in decimals (e.g., 1.05 being 5% increase, 1.001 being 0.1% increase)
   green-energy-openness-increase-in-formal-meetings ; percentage expressed in decimals (e.g., 1.05 being 5% increase, 1.001 being 0.1% increase)
   trust-increase-in-informal-meetings ; percentage expressed in decimals
@@ -42,17 +44,25 @@ municipalities-own [
   green-energy-openness
   political-variety
   number-informal-meetings
+  fte
 ]
 
 projects-own [
   active
   installed-power
+  project-phase ; 0 = project is proposed as an issue (regional discussion); 1 = project is in permission process (local discussion), 2 = project is implemented, 3 = project is decomissioned
   project-type
   project-size
   lifespan
   acceptance-threshold
   number-samples
   implementation-time
+
+  ; Negotiation-related attributes
+  rounds-discussed ; number of rounds for how long this project is already discussed
+  project-priority ; assigned to filter which projects to discuss
+  offer-list ; list of all the offers and trade-offs involved in this project, including the municipality that made an offer
+  negotiation-failed ; boolean, whether the municipalities managed to come to an agreement
 ]
 
 
@@ -68,7 +78,16 @@ project-connections-own [
   owner ; boolean, whether the municipality is the owner of a project
   positively-affected ; boolean, whether a municipality is positively affected
   negatively-affected ; boolean, whether a municipality is negatively affected
-  project-phase ; 0 = project is proposed, 1 = project is in the permission progress, 2 = project is implemented
+  ; project-phase ; 0 = project is proposed, 1 = project is in the permission progress, 2 = project is implemented
+
+  ; Negotiation-related attributes
+  upper-threshold ; highest bound the municipality is willing to accept (numerical)
+  lower-threshold ; lowest bound the municipality is willing to accept (numerical)
+  concession-stepsize ; measure of how important an issue is to a municipality
+  objective ; either "max" or "min", indicating in which direction a municipality would like to see the negotiation going
+  my-last-offer ; attribute to save the last offer a specific municipality has made
+  accept-offer ; indicator whether a municipality is willing to accept the latest offer made
+  drop-out; boolean, indicates if a municipality wants to drop out of a project
 
 ]
 
@@ -88,10 +107,15 @@ to setup
   set experience-scaling-factor 20
   set n-of-most-trusted-colleagues 3
   set percentage-delayed 0.5
+  set projects-accepted 0
+  set projects-rejected 0
+
+
   setup-municipalities
   setup-informal-network
   setup-projects
   setup-municipality-groups
+
 
 
 end
@@ -126,6 +150,7 @@ to setup-municipalities
         set inhabitants item 1 data
         set green-energy-openness item 2 data
         set political-variety item 3 data
+        set fte item 4 data
         set number-informal-meetings 0
 
         set label name
@@ -217,6 +242,9 @@ to setup-projects
         set acceptance-threshold item 3 data
         set number-samples item 4 data
         set implementation-time (item 5 data) * 12 ; ticks
+        set offer-list (list)
+        set negotiation-failed False
+        set project-priority 0
 
         let x-cor random-xcor
         let y-cor random-ycor
@@ -244,7 +272,6 @@ to setup-municipality-groups
   set search-areas []
 
   ; Add different search areas based on Figure 6 of the RES 1.0 (p. 22)
-  set search-areas lput (list "Urban area" (list "solarpark-urban") (turtle-set municipalities) 724) search-areas
   set search-areas lput (list "A4 area" (list "solarpark-small" "solarpark-medium" "solarpark-large" "windpark-small") (turtle-set municipalities with [member? name ["Leidschendam-Voorburg" "Rijswijk" "Delft" "Midden-Delfland" "Schiedam" "Albrandswaard" "Wassenaar"]]) 134) search-areas
   set search-areas lput (list "A12 area" (list "solarpark-small" "solarpark-medium" "solarpark-large" "windpark-small" "windpark-medium" "windpark-large") (turtle-set municipalities with [member? name ["s-Gravenhage" "Pijnacker-Nootdorp" "Zoetermeer" "Lansingerland"]]) 14) search-areas
   set search-areas lput (list "A20 area" (list "solarpark-small" "solarpark-medium" "windpark-small" "windpark-medium" "windpark-large") (turtle-set municipalities with [member? name ["Rotterdam" "Vlaardingen" "Maassluis" "Schiedam" "Capelle aan den IJssel"]]) 141) search-areas
@@ -261,6 +288,9 @@ to go
 
   ; stop simulation if year 2051 is reached
   if (current-year > end-year)[ stop ]
+
+  ; Handle the shocks
+  if enable-shocks [shock 2025 1]
 
   ; Handle the external factors
   external-factors
@@ -353,17 +383,21 @@ to project-proposals-generation
   repeat round (total-project-proposal-frequency - projects-proposed) / (13 - current-month) [
     let search-area-selected False
 
-    ; Randomly get a number (min 1 and max 1371, being the combined potential of the search areas
-    let random-selector (random 1371) + 1
+    ; Randomly get a number (min 1 and max 647, being the combined potential of the search areas
+    let random-selector random 647
 
-    ; Use that number to select one of the search areas (selected by the potential each search area has
+    ; Use that number to select one of the search areas (selected by the potential each search area has in the concept energy strategy)
     let search-area 0
-    if random-selector > 0 [set search-area item 0 search-areas] ; Urban solar
-    if random-selector > 724 [set search-area item 1 search-areas] ; A4 area
-    if random-selector > 858 [set search-area item 2 search-areas] ; A12 area
-    if random-selector > 872 [set search-area item 3 search-areas] ; A20 area
-    if random-selector > 1013 [set search-area item 4 search-areas] ; A15 area
-    if random-selector > 1318 [set search-area item 5 search-areas] ; Greenhouse garden areas
+
+    set search-area (ifelse-value
+      random-selector < 134 [item 0 search-areas] ; A4 area
+      random-selector < 148 [item 1 search-areas] ; A12 area
+      random-selector < 289 [item 2 search-areas] ; A20 area
+      random-selector < 594 [item 3 search-areas] ; A15 area
+      random-selector < 647 [item 4 search-areas] ; Greenhouse garden areas
+
+      )
+
 
     ; Select the project type that is about to be implemented
     let proposed-project-type one-of item 1 search-area
@@ -376,47 +410,90 @@ to project-proposals-generation
         setxy random-xcor random-ycor
       ]
 
+
+
       ; pick one municipality out of the search area as a project owner
       let responsible-municipality one-of item 2 search-area
 
       ; create project connection to the owner
       create-project-connection-to responsible-municipality [
-        set project-phase 0 ; to indicate that the project is proposed
         set implementation-time-left [implementation-time] of myself ; needs to be the lead-time from the csv
         set positively-affected True ; a municipality responsible is assumed to benefit from a project automatically
         set owner True ; set the municipality to the "responsible" municipality
         set shape "project-owner"
+
+
+        let stance get-stance true myself responsible-municipality
+
+        ;print stance
+
+        set lower-threshold item 0 stance
+        set upper-threshold item 1 stance
+        set concession-stepsize item 2 stance
+        set objective item 3 stance
+        set accept-offer False
+        set drop-out False
+
+
+        ; Set the initial offer
+        ifelse objective = "max"[
+          set my-last-offer upper-threshold
+        ][
+          set my-last-offer lower-threshold
+        ]
 
         if not show-projects [hide-link]
 
       ]
 
 
-      ; Only create externalities whenever the search area is not an urban area
-      if item 0 search-area != "Urban area" [
+      ; assign positive and negative externatities to the other municipalities
 
-        ; assign positive and negative externatities to the other municipalities
-        create-project-connections-to item 2 search-area [
-          set owner False
+      create-project-connections-to n-of 2 item 2 search-area [
+        set owner False
 
-          ; a project can have positive, negative or no externalities on another municipality
-          let dice random 3
-          if dice = 0 [ ; positive externalities
-            set shape "project-externality"
-            set positively-affected True
-            set negatively-affected False
-            set color 83
-          ]
-          if dice = 1 [ ; positive externalities
-            set shape "project-externality"
-            set positively-affected False
-            set negatively-affected True
-            set color 23
-          ]
+        ; a project can have positive, negative or no externalities on another municipality
+        let dice random 3
+        if dice = 0 [ ; positive externalities
+          set shape "project-externality"
+          set positively-affected True
+          set negatively-affected False
+          set color 83
 
-          ifelse show-externalities [show-link ] [hide-link]
+
+
         ]
+        if dice = 1 [ ; positive externalities
+          set shape "project-externality"
+          set positively-affected False
+          set negatively-affected True
+          set color 23
+        ]
+
+       ; Prepare for the negotiation
+        let stance get-stance false myself other-end
+
+        ;print stance
+
+        set lower-threshold item 0 stance
+        set upper-threshold item 1 stance
+        set concession-stepsize item 2 stance
+        set objective item 3 stance
+        set accept-offer False
+        set drop-out False
+
+
+        ; Set the initial offer
+        ifelse objective = "max"[
+          set my-last-offer upper-threshold
+        ][
+          set my-last-offer lower-threshold
+        ]
+
+
+        ifelse show-externalities [show-link ] [hide-link]
       ]
+
 
       ; once projects are proposed to and taken into account by a municipality, they are shown and associated with the municipality which received it
       if show-projects [ set hidden? False  ]
@@ -430,121 +507,126 @@ to project-proposals-generation
 end
 
 
+
+
+
+
+
 to manage-projects
 
-  ; Check whether there are new projects that do not have any personnel assigned
-  let new-projects my-project-connections with [project-phase = 0 AND owner = True]
-
-  if any? new-projects [
-
-    ; Iterate over the new projects proposed
-    ask new-projects [
-
-      let project-to-discuss other-end
-
-      ; In 50% of the cases, the city council decision is delayed
-      if random-float 1 > percentage-delayed [
-        if show-municipal-decisions [
-          output-print (word "PROJECT DELAYED: " [project-type] of project-to-discuss " in " [name] of myself)
-        ]
-        stop
-      ]
-
-      let vote-list []
-
-      repeat [number-samples] of project-to-discuss [
-        set vote-list lput (random-normal [green-energy-openness] of myself [political-variety] of myself) vote-list
-      ]
-
-      ; Check for vote results, and check if there is capacity there (not if it's a solar urban project)
-      ifelse mean vote-list >= [acceptance-threshold] of project-to-discuss AND ((count ([project-connections] of myself) with [project-phase = 0 AND owner = True]) < ([inhabitants] of myself * max-project-capacity / 10000) OR [project-type] of project-to-discuss = "solarpark-urban") [
-        ; in case a project is accepted, assign one person working on the project
-        if show-municipal-decisions [
-          output-print (word "PROJECT ACCEPTED: " [project-type] of project-to-discuss " in " [name] of myself )
-        ]
-
-        set project-phase 1 ; to indicate that the project is in the permission procedure
-
-
-        ; If accepted, the trust towards a municipality with negative externalities is reduced
-        let negatively-affected-municipalities turtle-set nobody
-        let positively-affected-municipalities turtle-set nobody
-
-        ask [link-neighbors] of project-to-discuss [
-          if [negatively-affected = True] of link-with project-to-discuss [
-            set negatively-affected-municipalities (turtle-set negatively-affected-municipalities self)
-          ]
-          if [positively-affected = True] of link-with project-to-discuss [
-            set positively-affected-municipalities (turtle-set positively-affected-municipalities self)
-          ]
-        ]
-
-        let project-manager myself
-
-        ; Decrease in trust with negatively affected municipalities
-        ask negatively-affected-municipalities [
-          ask municipality-connection-with project-manager [
-            ;print (word "Trust decreased between " [name] of project-manager " (project manager) and " [name] of myself)
-            set trust trust * 0.95 ; 5% descrease in trust
-          ]
-        ]
-
-        ; Increase in trust with positively affected municipalities
-        ask positively-affected-municipalities [
-          if is-link? municipality-connection-with project-manager [ ; check, because project owner also has positive externalities
-            ask municipality-connection-with project-manager [
-              set trust min (list 100 (trust * 1.025)) ; 2.5% increase in trust
-            ]
-          ]
-        ]
-
-      ][
-        ; in case a project is rejected
-
-        if show-municipal-decisions [
-          output-print (word "PROJECT REJECTED: " [project-type] of project-to-discuss " in " [name] of myself)
-        ]
-
-        ; Add to counter
-        set projects-rejected projects-rejected + 1
-
-        ask project-to-discuss [die]
-      ]
-    ]
-  ]
-
-  ; Work on the projects which are in phase 1 (permission phase)
-  let projects-in-progress my-project-connections with [project-phase = 1 AND owner = True]
-  let active-projects (turtle-set [other-end] of my-project-connections with [project-phase = 2 AND owner = True])
-
-
-  ; Gain project-specific knowledge and decrease the implementation time
-  ask projects-in-progress [
-
-    ; Figure out if there are already active projects of the same type. If yes, gain 5% efficiency for each project that has already been successfully implemented
-    let own-project-type [project-type] of other-end
-    let experience-factor ((count active-projects with [project-type = own-project-type]) / experience-scaling-factor)
-
-    set implementation-time-left max list 0  (implementation-time-left - (1 + experience-factor))
-
-    ; If no implementation time is left, set the other end to active
-    if implementation-time-left = 0 [
-      ; set the project phase to implementatino
-      set project-phase 2
-
-      ; set the project to active
-      ask other-end [set active True]
-    ]
-
-  ]
-
-
-  ; Decomission projects which lifespan has elapsed
-  ask my-project-connections with [project-phase = 2 AND owner = True AND [lifespan] of other-end = 0] [
-    ask other-end [
-      set active False
-    ]
-  ]
+;  ; Check whether there are new projects that do not have any personnel assigned
+;  let new-projects my-project-connections with [[project-phase] of other-end = 0 AND owner = True]
+;
+;  if any? new-projects [
+;
+;    ; Iterate over the new projects proposed
+;    ask new-projects [
+;
+;      let project-to-discuss other-end
+;
+;      ; In 50% of the cases, the city council decision is delayed
+;      if random-float 1 > percentage-delayed [
+;        if show-municipal-decisions [
+;          output-print (word "PROJECT DELAYED: " [project-type] of project-to-discuss " in " [name] of myself)
+;        ]
+;        stop
+;      ]
+;
+;      let vote-list []
+;
+;      repeat [number-samples] of project-to-discuss [
+;        set vote-list lput (random-normal [green-energy-openness] of myself [political-variety] of myself) vote-list
+;      ]
+;
+;      ; Check for vote results, and check if there is capacity there (not if it's a solar urban project)
+;      ifelse mean vote-list >= [acceptance-threshold] of project-to-discuss AND ((count ([project-connections] of myself) with [[project-phase] of other-end = 0 AND owner = True]) < ([inhabitants] of myself * max-project-capacity / 10000) OR [project-type] of project-to-discuss = "solarpark-urban") [
+;        ; in case a project is accepted, assign one person working on the project
+;        if show-municipal-decisions [
+;          output-print (word "PROJECT ACCEPTED: " [project-type] of project-to-discuss " in " [name] of myself )
+;        ]
+;
+;        set project-phase 1 ; to indicate that the project is in the permission procedure
+;
+;
+;        ; If accepted, the trust towards a municipality with negative externalities is reduced
+;        let negatively-affected-municipalities turtle-set nobody
+;        let positively-affected-municipalities turtle-set nobody
+;
+;        ask [link-neighbors] of project-to-discuss [
+;          if [negatively-affected = True] of link-with project-to-discuss [
+;            set negatively-affected-municipalities (turtle-set negatively-affected-municipalities self)
+;          ]
+;          if [positively-affected = True] of link-with project-to-discuss [
+;            set positively-affected-municipalities (turtle-set positively-affected-municipalities self)
+;          ]
+;        ]
+;
+;        let project-manager myself
+;
+;        ; Decrease in trust with negatively affected municipalities
+;        ask negatively-affected-municipalities [
+;          ask municipality-connection-with project-manager [
+;            ;print (word "Trust decreased between " [name] of project-manager " (project manager) and " [name] of myself)
+;            set trust trust * 0.95 ; 5% descrease in trust
+;          ]
+;        ]
+;
+;        ; Increase in trust with positively affected municipalities
+;        ask positively-affected-municipalities [
+;          if is-link? municipality-connection-with project-manager [ ; check, because project owner also has positive externalities
+;            ask municipality-connection-with project-manager [
+;              set trust min (list 100 (trust * 1.025)) ; 2.5% increase in trust
+;            ]
+;          ]
+;        ]
+;
+;      ][
+;        ; in case a project is rejected
+;
+;        if show-municipal-decisions [
+;          output-print (word "PROJECT REJECTED: " [project-type] of project-to-discuss " in " [name] of myself)
+;        ]
+;
+;        ; Add to counter
+;        set projects-rejected projects-rejected + 1
+;
+;        ask project-to-discuss [die]
+;      ]
+;    ]
+;  ]
+;
+;  ; Work on the projects which are in phase 1 (permission phase)
+;  let projects-in-progress my-project-connections with [[project-phase] of other-end = 1 AND owner = True]
+;  let active-projects (turtle-set [other-end] of my-project-connections with [[project-phase] of other-end = 2 AND owner = True])
+;
+;
+;  ; Gain project-specific knowledge and decrease the implementation time
+;  ask projects-in-progress [
+;
+;    ; Figure out if there are already active projects of the same type. If yes, gain 5% efficiency for each project that has already been successfully implemented
+;    let own-project-type [project-type] of other-end
+;    let experience-factor ((count active-projects with [project-type = own-project-type]) / experience-scaling-factor)
+;
+;    set implementation-time-left max list 0  (implementation-time-left - (1 + experience-factor))
+;
+;    ; If no implementation time is left, set the other end to active
+;    if implementation-time-left = 0 [
+;
+;      ; set the project to active
+;      ask other-end [
+;        set active True
+;        set project-phase 2]
+;    ]
+;
+;  ]
+;
+;
+;  ; Decomission projects which lifespan has elapsed
+;  ask my-project-connections with [[project-phase] of other-end = 2 AND owner = True AND [lifespan] of other-end = 0] [
+;    ask other-end [
+;      set active False
+;    ]
+;  ]
 
 
 
@@ -558,13 +640,13 @@ to communicate-informally
 
   ; Get a list of own projects that are currently managed
   let own-projects []
-  ask my-project-connections with [owner AND project-phase = 1 AND [project-type] of other-end != "solarpark-urban"]  [
+  ask my-project-connections with [owner AND [project-phase] of other-end = 1 AND [project-type] of other-end != "solarpark-urban"]  [
     set own-projects lput [project-type] of other-end own-projects
   ]
 
   ; Get municipality's friends, select the 3 best friends
   let friend-connections max-n-of n-of-most-trusted-colleagues my-municipality-connections [trust]
-  let friends (turtle-set [other-end] of friend-connections) with [any? my-project-connections with [owner AND project-phase = 2 AND member? [project-type] of other-end own-projects]]
+  let friends (turtle-set [other-end] of friend-connections) with [any? my-project-connections with [owner AND [project-phase] of other-end = 2 AND member? [project-type] of other-end own-projects]]
 
   ; Check if there are any friends that have already worked on a project
   if any? friends [
@@ -579,7 +661,7 @@ to communicate-informally
 
       let percentage-shared ([trust] of municipality-connection-with close-friend) / 100
 
-      ask one-of my-project-connections with [owner AND project-phase = 1][
+      ask one-of my-project-connections with [owner AND [project-phase] of other-end = 1][
         set implementation-time-left implementation-time-left - percentage-shared
       ]
 
@@ -588,23 +670,211 @@ to communicate-informally
         set trust min (list 100 (trust * trust-increase-in-informal-meetings)) ; increase by 1%
       ]
 
+
     ]
   ]
 
+  ; when a municipality who is the owner of a project is also discussing it in the administrative network meetings (project phase = 0 and project priority is > 0)
+  ; it forms a coalition with other municipalities with whom it developed a high trust until then. Concretely, this means that their upper and lower thresholds
+  ; for the negotiation on that project become aligned.
+  if [owner] of my-project-connections = True and [project-phase] of my-project-connections = 0 and [project-priority] of my-project-connections  > 0 [
 
+    ; identify the project being discussed
+    let project-discussed [other-end] of my-project-connections
 
+    ; identify the project owner's most trusted friends
+    let owner-friend-connections max-n-of n-of-most-trusted-colleagues my-municipality-connections [trust]
+    let owner-friends (turtle-set [other-end] of owner-friend-connections) with [any? my-project-connections with [owner AND [project-phase] of other-end = 2 AND member? [project-type] of other-end own-projects]]
 
+    if any? owner-friends [
+      ask owner-friends [
 
+        ; identify friends' projects
+        let owner-friend-projects [other-end] of my-project-connections
+
+        ; The friends need to create a link with the project if there isn't already a link between the friends and the project being discussed
+        if not member? project-discussed owner-friend-projects [
+          create-project-connections-from project-discussed
+        ]
+
+        ; select the link between the friends and the project being discussed
+        let project-discussed-connection my-project-connections with [other-end = project-discussed]
+
+        ; if the friends were not negatively affected by a project being discussed
+        if [negatively-affected] of project-discussed-connection = False [
+          ask [other-end] of project-discussed-connection [
+            output-print "THRESHOLDS ALIGN"
+
+            ; align thresholds of friends to the project owner's ones
+            set upper-threshold [upper-threshold] of project-discussed
+            set lower-threshold [lower-threshold] of project-discussed
+          ]
+        ]
+      ]
+    ]
+  ]
 
 end
 
 
 
+
+
 to conduct-meeting
 
+  ; Print out meetings number
   if show-regional-meetings [
     output-print (word "ADMINISTRATIVE NETWORK MEETING " meetings-conducted "/" administrative-network-meetings " started")
   ]
+
+
+  ; Iterate over several meeting rounds
+  repeat rounds-per-meeting [
+
+    ; Select the project to be discussed
+    let discussed-project select-project-to-be-discussed
+
+    ; Abort if there is no project to be discussed
+    if (discussed-project != 0) and (discussed-project != nobody) [
+
+      ask discussed-project [
+
+        ; Increase counter for round discussed
+        set rounds-discussed rounds-discussed + 1
+
+        ; Iterate over all municipalities involved
+        ask my-project-connections [
+
+          ; Get the last offer and the last offering municipality from the offer list
+          let latest-offer -1
+          let latest-municipality -1
+
+          if length [offer-list] of myself > 0 [
+            set latest-offer item 1 last [offer-list] of myself
+            set latest-municipality item 0 last [offer-list] of myself
+          ]
+
+
+          ; CASE 1 - Make an offer, if no offer is made yet ------------------------------------------------------------------------------------------------------------
+          if latest-offer = -1 [
+            let offer 0
+            ifelse objective = "min" [ set offer lower-threshold] [set offer upper-threshold ]
+
+            set my-last-offer offer
+            make-new-offer [who] of myself (list [who] of other-end offer)
+
+            set latest-municipality [who] of other-end
+            set latest-offer offer
+
+            ; Print
+            if show-regional-meetings [output-print (word [name] of other-end " made a first offer: " offer " MW")]
+
+          ]
+
+
+          ; CASE 2 - Accept the previous offer, only if the offer is in "reach" (not to far away from the current offer and within the thresholds ------------------------
+          if (latest-offer >= lower-threshold) and (latest-offer <= upper-threshold) [
+
+            let agreed? False
+
+            ; Check the objective and agree based on that
+            if (objective = "min" and latest-offer <= my-last-offer) or (objective = "max" and latest-offer >= my-last-offer) or (abs (my-last-offer - latest-offer) < (agreement-factor * concession-stepsize)) [
+              set accept-offer True
+              set agreed? True
+              set my-last-offer latest-offer
+              set latest-municipality [who] of other-end
+            ]
+
+            ; Print
+            if show-regional-meetings and agreed? and (latest-municipality != [who] of other-end) [output-print (word [name] of other-end " agrees to the offer.")]
+          ]
+
+
+
+          ; CASE 3 - Make a counter-offer, if the latest offer is not from myself and made a different offer -------------------------------------------------------------------
+          if (latest-municipality != [who] of other-end) and (latest-municipality >= 0) and (latest-offer != my-last-offer)[
+
+            let offer my-last-offer ; Get the last offer of the municipality
+            ifelse objective = "min" [
+              ; Check if concession would cross the threshold
+              set offer min (list (offer + concession-stepsize) upper-threshold) ][
+              set offer max (list (offer - concession-stepsize) lower-threshold) ]
+
+            set my-last-offer offer
+            make-new-offer [who] of myself (list [who] of other-end offer)
+
+            set latest-municipality [who] of other-end
+
+            ; Print
+            if show-regional-meetings [output-print (word [name] of other-end " made a counter offer: " offer " MW")]
+          ]
+
+
+
+          ; CASE 4 - Drop out of the project -----------------------------------------------------------------------------------------------------------------------------
+
+          if (latest-municipality != [who] of other-end) and (latest-offer = my-last-offer) and accept-offer = False [
+            set drop-out True
+
+            output-print (word "My last offer: " my-last-offer)
+
+            ; Print
+            if show-regional-meetings [output-print (word [name] of other-end " has dropped out of the negotiations")]
+          ]
+        ]
+
+        ; On a project level, check for different cases
+        ; Case 1: Did everyone accept?
+        if not member? False [accept-offer] of my-project-connections [
+
+          ; Check if there was no windpark with 0 megawatts accepted
+          ifelse item 1 last offer-list <= 0 [
+            if show-regional-meetings [output-print (word "An agreement has been reached that no wind shall be implemented " project-type " in " [[name] of other-end] of my-project-connections with [owner = True])]
+
+            set project-priority 0
+            set negotiation-failed True
+            set projects-rejected projects-rejected + 1
+
+          ][
+            if show-regional-meetings [output-print (word "An agreement has been reached on " project-type " in " [[name] of other-end] of my-project-connections with [owner = True])]
+
+            set project-priority 0
+            set project-phase 1
+
+            change-trust who 0.5
+
+            set projects-accepted projects-accepted + 1
+          ]
+
+
+        ]
+
+
+        ; Case 2: Did anyone drop out?
+        if member? True [drop-out] of my-project-connections [
+
+          if show-regional-meetings [output-print (word "Negotiation failed because someone dropped out after " rounds-discussed " rounds in " project-type " (Project ID " who ")")]
+
+          fail-negotiation who
+          set projects-rejected projects-rejected + 1
+
+        ]
+
+
+        ; Case 3: Did the negotiation run for too long?
+        if max-rounds-before-failed <= rounds-discussed [
+          if show-regional-meetings [output-print (word "Negotiation failed due to too many rounds: " rounds-discussed " Rounds for " project-type " (Project ID " who ")")]
+
+          fail-negotiation who
+          set projects-rejected projects-rejected + 1
+
+        ]
+
+      ]
+    ]
+  ]
+
+
 
   foreach search-areas [
     ; store current search area in a local variable
@@ -621,10 +891,10 @@ to conduct-meeting
 ;    show (word "solar experienced municipalities:" [name] of solar-experienced-municipalities)
 ;    show (word "wind experienced municipalities:" [name] of wind-experienced-municipalities)
 
-    let interested-municipalities (item 2 search-area) with [any? my-project-connections with [project-phase = 1]]
-    let solar-interested-municipalities (item 2 search-area) with [any? my-project-connections with [project-phase = 1 AND member? [project-type] of other-end (list "solarpark-small" "solarpark-medium" "solarpark-large")]]
-    let wind-interested-municipalities (item 2 search-area) with [any? my-project-connections with [project-phase = 1 AND member? [project-type] of other-end (list "windpark-small" "windpark-medium" "windpark-large")]]
-    let urban-interested-municipalities (item 2 search-area) with [any? my-project-connections with [project-phase = 1 AND [project-type] of other-end = "solarpark-urban"]]
+    let interested-municipalities (item 2 search-area) with [any? my-project-connections with [[project-phase] of other-end = 1]]
+    let solar-interested-municipalities (item 2 search-area) with [any? my-project-connections with [[project-phase] of other-end = 1 AND member? [project-type] of other-end (list "solarpark-small" "solarpark-medium" "solarpark-large")]]
+    let wind-interested-municipalities (item 2 search-area) with [any? my-project-connections with [[project-phase] of other-end = 1 AND member? [project-type] of other-end (list "windpark-small" "windpark-medium" "windpark-large")]]
+    let urban-interested-municipalities (item 2 search-area) with [any? my-project-connections with [[project-phase] of other-end = 1 AND [project-type] of other-end = "solarpark-urban"]]
 
 ;    show (word "interested municipalities:" [name] of interested-municipalities)
 ;    show (word "solar interested municipalities:" [name] of solar-interested-municipalities)
@@ -636,12 +906,10 @@ to conduct-meeting
       let search-area-trust mean [trust] of (link-set [my-municipality-connections] of interested-municipalities)
 
       ; store the search areas' trust means to display them
-      if (item 0 search-area) = "Urban area" [set urban-area-trust search-area-trust]
       if (item 0 search-area) = "A4 area" [set A4-area-trust search-area-trust]
       if (item 0 search-area) = "A12 area" [set A12-area-trust search-area-trust]
       if (item 0 search-area) = "A15 area" [set A15-area-trust search-area-trust]
       if (item 0 search-area) = "A20 area" [set A20-area-trust search-area-trust]
-      if (item 0 search-area) = "Greenhouse garden" [set greenhouse-area-trust search-area-trust]
 
 
       ; when search area is "Urban area": an information exchange occurs about urban solarparks alone
@@ -703,6 +971,216 @@ end
 
 
 
+
+to make-new-offer [project-id offer]
+
+  ask project project-id [
+
+    ; Append the offer to the offer-list
+    set offer-list lput offer offer-list
+
+    ; Reset all agreements to the offer
+    ask my-project-connections [
+      set accept-offer False
+    ]
+  ]
+
+end
+
+
+to-report get-stance [project-owner? a-project my-municipality]
+
+  let concession-step 0
+  let upper-threshold 0
+  let lower-threshold 0
+  let objective ""
+
+  let inh [inhabitants] of my-municipality
+  let geo [green-energy-openness] of my-municipality
+
+  ; Determine the concession step and the range
+  if member? "wind" [project-type] of a-project [
+
+    let concession-factor (0.000001642036 * inh + 0.9770115)
+    set concession-factor round concession-factor
+    set concession-step (10 / concession-factor) ; 5 or 10MW, which equals to one or two windturbines
+
+    ; All municipalities will have 0 as a lower threshold for wind projects
+    set lower-threshold 0
+
+    ; Desired number of windmills is the largest windpark (6 turbines) in case of a high green energy openness and 0 windmills in case of a low green energy openness
+    let number-windmills round (6 * (geo / 100))
+
+    set upper-threshold (number-windmills * 5) ; 5MW per windmill
+
+  ]
+
+  ; In case the project is solar
+  if member? "solar" [project-type] of a-project [
+
+    ; original maximum concession step is 150KW (50 percentile of  solar projects implemented in 2019 in Zuid Holland)
+    set concession-step 0.15 ; 90KW negotiation size
+
+    ; Inhabitants influence the concession stepsize in a linear way
+    ; Linear interpolation based on the smallest and biggest municipality
+    ; Assuption: Larger municipalities have more (soft) power to push through their interest and are thus willing to make less concessions
+    ; Linear function returns values between 1 (smallest municipality) and 2 (largest municipality)
+    let concession-factor (0.000001642036 * inh + 0.9770115)
+
+    ; High and low green energy openness concession influece is modelled with a parabola
+    ; A very low and a very high green energy openness will result in less concessions due to strong believes in a certain direction.
+    ; Function is a parabola that returns 2 in case the green energy openness is 0 or 100; and 1 in case the green energy openness is 50
+    set concession-factor concession-factor * (2 - 0.04 * geo + 0.0004 * geo)
+
+    ; Set the final concession step based on the maximal concession step and the factor as calculated by the two formulas above.
+    set concession-step concession-step / concession-factor
+
+
+    ; Determine the range
+    let max-solar-project-size 5
+
+    ifelse project-owner? [
+      set lower-threshold 0
+      set upper-threshold round (max-solar-project-size * (geo / 100))
+    ][
+      ; For non project owners, at least a small solar park should be implemented
+      set lower-threshold 0.06
+      set upper-threshold 0.06 + precision ((max-solar-project-size - 0.06) * (geo / 100)) 2
+    ]
+  ]
+
+
+  ; Determine the objective
+  ; If a project owner is the municipality
+  ifelse project-owner? [
+    ifelse member? "solar" [project-type] of a-project [
+
+      ; In case green energy openness is greater than 33%, try to maximize your range, otherwise try to minimize it
+      ifelse geo > 33[
+        set objective "max"
+      ][
+        set objective "min"
+      ]
+    ][
+      ; In case the project is about wind, always try to minimize the impact
+      set objective "min"
+    ]
+
+  ][
+    ; If a project owner is not the municipality, always try to maximize the renewable energy projects of other municipalities
+    set objective "max"
+  ]
+
+
+  ; Determine the range
+
+
+
+  report (list lower-threshold upper-threshold concession-step objective)
+
+end
+
+
+
+to-report select-project-to-be-discussed
+
+  ; In case there isn't any projects that are prioritized
+  if not any? projects with [project-priority > 0 and project-phase = 0] [
+
+    if any? projects with [project-phase = 0 AND any? my-project-connections and negotiation-failed = False] [
+      ask one-of projects with [project-phase = 0 AND any? my-project-connections and negotiation-failed = False] [
+        set project-priority 100
+
+        if show-regional-meetings [output-print (word "A new project started to be discussed: " self " (" project-type ")")]
+      ]
+    ]
+  ]
+
+  report one-of projects with [project-priority > 0 and project-phase = 0]
+
+end
+
+
+
+to change-trust [project-id amount]
+
+  ask project project-id [
+
+    ; Decrease trust between all parties involved
+    let municipalities-involved turtle-set [other-end] of my-project-connections
+
+    ; create a list of municipality connections
+    let municipality-trust-connections (list)
+
+    ask municipalities-involved [
+      ; Iterate over all municipality connections
+      ask turtle-set [other-end] of my-municipality-connections [
+        ; Decrease trust in case the
+        if member? self municipalities-involved [
+
+          set municipality-trust-connections lput municipality-connection-with myself municipality-trust-connections
+
+        ]
+      ]
+    ]
+
+    ; Remove duplicate links in the list
+    set municipality-trust-connections remove-duplicates municipality-trust-connections
+
+    ; Change the trust value
+    foreach municipality-trust-connections [
+      x -> ask x [
+        set trust trust + amount
+
+        let connected-municipalities (list [name] of both-ends)
+
+        if amount > 0 and show-trust-changes [
+          output-print (word "Trust increase between " connected-municipalities)
+        ]
+
+        if amount < 0 and show-trust-changes [
+          output-print (word "Trust decrease between " connected-municipalities)
+        ]
+      ]
+    ]
+  ]
+
+
+end
+
+
+to fail-negotiation [project-id]
+
+  ask project project-id[
+    set negotiation-failed True
+    set project-priority 0
+    set hidden? True
+  ]
+
+  change-trust project-id -0.5
+
+end
+
+
+
+to shock [desired-year desired-month]
+
+  if current-year = desired-year and current-month = desired-month [
+    ; Decrease all trust values
+    ask municipality-connections [
+
+      set trust 0.1 * trust ; decrease trust to 10% of the previous value
+
+
+    ]
+
+  ]
+
+
+end
+
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;; DISPLAY FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;
 to update-layout [first-time]
 
@@ -739,6 +1217,20 @@ end
 
 to-report current-urban-production
     report sum [installed-power] of projects with [active AND project-type = "solarpark-urban" ]
+end
+
+to-report get-desired-range [municipality-id type-of-project owner-of-project]
+
+  let selected-municipality municipality municipality-id
+
+
+
+
+
+  report [inhabitants] of selected-municipality
+
+
+
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -789,14 +1281,14 @@ OUTPUT
 562
 266
 1098
-389
+542
 13
 
 MONITOR
-563
-215
-620
-260
+1339
+293
+1396
+338
 Year
 current-year
 17
@@ -804,10 +1296,10 @@ current-year
 11
 
 MONITOR
-622
-215
-679
-260
+1339
+343
+1396
+388
 Month
 current-month
 17
@@ -815,10 +1307,10 @@ current-month
 11
 
 PLOT
-1105
-268
-1319
-388
+1118
+271
+1332
+391
 Political Overview
 Green Energy Openness
 Count
@@ -850,10 +1342,10 @@ NIL
 1
 
 PLOT
-874
-394
-1202
-559
+1118
+398
+1618
+563
 Projects overview
 Tick
 Number Projects
@@ -865,30 +1357,30 @@ true
 true
 "" ""
 PENS
-"Accepted by municipalities" 1.0 0 -16777216 true "" "plot count project-connections with [owner = True]"
+"Projects accepted in formal meetings" 1.0 0 -16777216 true "" "plot projects-accepted"
 "Active projects" 1.0 0 -14439633 true "" "plot count projects with [active = True]"
 "Projects rejected" 1.0 0 -2674135 true "" "plot projects-rejected"
 
 SLIDER
-807
-72
-1115
-105
+806
+185
+1114
+218
 total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-12.0
+16.0
 1
 1
 per year
 HORIZONTAL
 
 SWITCH
-1151
-70
-1443
-103
+1463
+71
+1755
+104
 show-municipal-decisions
 show-municipal-decisions
 1
@@ -896,10 +1388,10 @@ show-municipal-decisions
 -1000
 
 SLIDER
-807
-33
-1114
-66
+1149
+39
+1418
+72
 administrative-network-meetings
 administrative-network-meetings
 0
@@ -911,10 +1403,10 @@ per year
 HORIZONTAL
 
 SWITCH
-1151
-33
-1442
-66
+1463
+34
+1754
+67
 show-regional-meetings
 show-regional-meetings
 1
@@ -932,30 +1424,30 @@ Levers -------------------------------------------
 1
 
 TEXTBOX
-1145
-10
-1416
-52
+1457
+11
+1728
+53
 Visuals -----------------------------------
 11
 0.0
 1
 
 TEXTBOX
-1128
-29
-1143
-239
+1130
+24
+1145
+234
 |\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n
 11
 0.0
 1
 
 SWITCH
-1290
-108
-1444
-141
+1602
+109
+1756
+142
 show-externalities
 show-externalities
 1
@@ -963,47 +1455,47 @@ show-externalities
 -1000
 
 SLIDER
-808
-109
-1115
-142
+806
+37
+1113
+70
 informal-meetings-frequency
 informal-meetings-frequency
 0
 25
-12.0
+11.0
 1
 1
 per year
 HORIZONTAL
 
 SWITCH
-1153
-147
-1445
-180
+1465
+148
+1655
+181
 show-municipal-network
 show-municipal-network
-1
-1
--1000
-
-SWITCH
-1153
-108
-1285
-141
-show-projects
-show-projects
 0
 1
 -1000
 
+SWITCH
+1465
+109
+1597
+142
+show-projects
+show-projects
+1
+1
+-1000
+
 PLOT
-1207
-394
-1493
-559
+882
+572
+1168
+737
 MW implemented
 NIL
 NIL
@@ -1028,17 +1520,17 @@ end-year
 end-year
 2030
 2100
-2050.0
+2075.0
 5
 1
 NIL
 HORIZONTAL
 
 PLOT
-563
-394
-870
-559
+564
+573
+871
+738
 search areas' mean trust
 Tick
 Mean Trust
@@ -1055,7 +1547,6 @@ PENS
 "A12" 1.0 0 -2674135 true "" "plot A12-area-trust"
 "A15" 1.0 0 -955883 true "" "plot A15-area-trust"
 "A20" 1.0 0 -6459832 true "" "plot A20-area-trust"
-"Greenhouse" 1.0 0 -1184463 true "" "plot greenhouse-area-trust"
 "Mean Trust in Region" 1.0 0 -10899396 true "" "plot regional-trust"
 
 SWITCH
@@ -1070,30 +1561,30 @@ random-intial-trust
 -1000
 
 SLIDER
-807
-146
-1114
-179
+805
+112
+1112
+145
 green-energy-openness-change
 green-energy-openness-change
 -5
 5
-0.0
+1.0
 1
 1
 %
 HORIZONTAL
 
 SLIDER
-808
-183
-1116
-216
+806
+149
+1114
+182
 political-variety-change
 political-variety-change
 -5
 5
-5.0
+2.0
 1
 1
 %
@@ -1110,15 +1601,15 @@ TEXTBOX
 1
 
 SLIDER
-808
-221
-1119
-254
+805
+222
+1115
+255
 max-project-capacity
 max-project-capacity
 0
 25
-12.0
+25.0
 1
 1
 per 10,000 inhabitants
@@ -1132,6 +1623,118 @@ SWITCH
 enable-formal-meetings
 enable-formal-meetings
 0
+1
+-1000
+
+SLIDER
+805
+75
+1113
+108
+search-area-meetings
+search-area-meetings
+0
+50
+31.0
+1
+1
+per year
+HORIZONTAL
+
+SLIDER
+1150
+78
+1421
+111
+rounds-per-meeting
+rounds-per-meeting
+0
+15
+3.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1150
+115
+1419
+148
+agreement-factor
+agreement-factor
+1
+10
+3.0
+1
+1
+NIL
+HORIZONTAL
+
+SWITCH
+1464
+186
+1649
+219
+show-trust-changes
+show-trust-changes
+1
+1
+-1000
+
+TEXTBOX
+1152
+13
+1416
+55
+Negotiations --------------------------
+11
+0.0
+1
+
+TEXTBOX
+1434
+35
+1449
+217
+|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|
+11
+0.0
+1
+
+SLIDER
+1150
+154
+1418
+187
+max-rounds-before-failed
+max-rounds-before-failed
+0
+25
+9.0
+1
+1
+NIL
+HORIZONTAL
+
+TEXTBOX
+1464
+244
+1724
+286
+Shocks ------------------------------
+11
+0.0
+1
+
+SWITCH
+1466
+268
+1614
+301
+enable-shocks
+enable-shocks
+1
 1
 -1000
 
@@ -1682,7 +2285,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.1.1
+NetLogo 6.2.0
 @#$#@#$#@
 @#$#@#$#@
 @#$#@#$#@
