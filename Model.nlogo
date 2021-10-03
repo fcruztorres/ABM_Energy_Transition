@@ -595,7 +595,7 @@ to manage-projects
         output-print (word "PROJECT ACCEPTED: " [project-type] of projects-agreed " in " [name] of self )
       ]
       ; move the project to the next phase (i.e., phase 2)
-      print projects-agreed
+      ; print projects-agreed
       ask projects-agreed [
         set project-phase 2
       ]
@@ -1390,7 +1390,7 @@ total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-17.0
+16.0
 1
 1
 per year
@@ -1403,7 +1403,7 @@ SWITCH
 130
 show-municipal-decisions
 show-municipal-decisions
-0
+1
 1
 -1000
 
@@ -1429,7 +1429,7 @@ SWITCH
 93
 show-regional-meetings
 show-regional-meetings
-0
+1
 1
 -1000
 
@@ -1588,7 +1588,7 @@ green-energy-openness-change
 green-energy-openness-change
 -5
 5
-1.0
+5.0
 1
 1
 %
@@ -1601,9 +1601,9 @@ SLIDER
 175
 political-variety-change
 political-variety-change
--5
-5
-1.0
+-10
+10
+4.0
 1
 1
 %
@@ -1627,8 +1627,8 @@ SLIDER
 max-project-capacity
 max-project-capacity
 0
-25
-14.0
+50
+25.0
 1
 1
 per 10,000 inhabitants
@@ -1654,7 +1654,7 @@ search-area-meetings
 search-area-meetings
 0
 50
-31.0
+19.0
 1
 1
 per year
@@ -1669,7 +1669,7 @@ rounds-per-meeting
 rounds-per-meeting
 0
 15
-9.0
+10.0
 1
 1
 NIL
@@ -1697,7 +1697,7 @@ SWITCH
 208
 show-trust-changes
 show-trust-changes
-0
+1
 1
 -1000
 
@@ -1720,7 +1720,7 @@ max-rounds-before-failed
 max-rounds-before-failed
 0
 25
-11.0
+25.0
 1
 1
 NIL
@@ -1737,10 +1737,10 @@ Shocks ------------------------------
 1
 
 SWITCH
-288
-58
-509
-91
+1657
+62
+1878
+95
 enable-shocks
 enable-shocks
 0
@@ -1766,6 +1766,48 @@ TEXTBOX
 11
 0.0
 1
+
+TEXTBOX
+1660
+39
+1928
+81
+Shocks -----------------------------------
+11
+0.0
+1
+
+TEXTBOX
+1614
+61
+1629
+327
+|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|
+11
+0.0
+1
+
+SWITCH
+1660
+138
+1827
+171
+Shock-trust-drop
+Shock-trust-drop
+1
+1
+-1000
+
+SWITCH
+1661
+196
+1880
+229
+Shock-meeting-frequency
+Shock-meeting-frequency
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
