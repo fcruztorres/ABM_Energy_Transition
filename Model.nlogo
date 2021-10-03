@@ -32,6 +32,13 @@ globals [
   experience-scaling-factor ; integer
   n-of-most-trusted-colleagues ; integer
   percentage-delayed ; decimal
+
+
+  ; Shocks
+  shock-1-times
+  shock-2-times
+  shock-3-times
+  shock-4-times
 ]
 
 
@@ -123,6 +130,7 @@ to setup
   setup-projects
   setup-municipality-groups
 
+  setup-shocks
 
 
 end
@@ -287,6 +295,17 @@ to setup-municipality-groups
 
 end
 
+to setup-shocks
+
+  ; Setting for the times when they should happen. Different times can be specified in a list and are a tuple of numbers, first the year and then the month
+  ; For instance, [[2021 5] [2030 9]] will create two shocks in May 2021 and in September 2030
+
+  set shock-1-times [[2025 1] [2030 1]]
+  set shock-2-times [[2035 1]]
+  set shock-3-times [[2040 1]]
+  set shock-4-times [[2045 1]]
+
+end
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;; GO FUNCTION ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -297,7 +316,7 @@ to go
   if (current-year > end-year)[ stop ]
 
   ; Handle the shocks
-  if enable-shocks [shock 2027 7 1]
+  shock
 
   ; Handle the external factors
   external-factors
@@ -1182,18 +1201,118 @@ end
 
 
 
-to shock [desired-year desired-month shock-number]
+to shock
 
-  if current-year = desired-year and current-month = desired-month [
+  ; Handle shock 1 - Drop in Trust, in case it is enabled ----------------------------------------------------------
+  if Shock-1-Trust-drop [
 
-    if shock-number = 1 [
-      ; Decrease all trust values
+    ; Variable that is set true if for whatever reason this tick shock 1 will happen
+    let shock-now False
+
+    ; Check if the shock is scheduled or will happen at a random time
+    ifelse S1-Time = "At given times" [
+      ; In case times are scheduled, iterate over the shock timelist as specified in the procedure setup-shocks
+      foreach shock-1-times [x -> if current-year = item 0 x and current-month = item 1 x [ set shock-now True ]]]
+
+    [
+      ; In case the shock is at random times, chheck if it's gonna happen randomly
+      let random-time random-float 100
+      if random-shock-probability > random-time [set shock-now True ]
+    ]
+
+    if shock-now [
+      ; Execute Shock
       ask municipality-connections [
         set trust 0.1 * trust ; decrease trust to 10% of the previous value
       ]
+
+      output-print (word "SHOCK: Shock 1 (reduce trust) happened in " current-year " " current-month)
+    ]
+  ]
+
+
+
+  ; Handle shock 2 - Search area frequency, in case it is enabled ----------------------------------------------------------
+  if Shock-2-Meeting-frequency [
+
+    ; Variable that is set true if for whatever reason this tick shock 1 will happen
+    let shock-now False
+
+    ; Check if the shock is scheduled or will happen at a random time
+    ifelse S2-Time = "At given times" [
+      ; In case times are scheduled, iterate over the shock timelist as specified in the procedure setup-shocks
+      foreach shock-2-times [x -> if current-year = item 0 x and current-month = item 1 x [ set shock-now True ]]]
+
+    [
+      ; In case the shock is at random times, chheck if it's gonna happen randomly
+      let random-time random-float 100
+      if random-shock-probability > random-time [set shock-now True ]
     ]
 
+    if shock-now [
+      ; Execute Shock
+      set administrative-network-meetings 1 ; Set the administrative network meetings to one
 
+      output-print (word "SHOCK: Shock 2 (Meeting-frequency) happened in " current-year " " current-month)
+    ]
+  ]
+
+
+  ; Handle shock 3 - Change in green energy opennness, in case it is enabled ----------------------------------------------------------
+  if Shock-3-Green-energy-openness [
+
+    ; Variable that is set true if for whatever reason this tick shock 1 will happen
+    let shock-now False
+
+    ; Check if the shock is scheduled or will happen at a random time
+    ifelse S3-Time = "At given times" [
+      ; In case times are scheduled, iterate over the shock timelist as specified in the procedure setup-shocks
+      foreach shock-3-times [x -> if current-year = item 0 x and current-month = item 1 x [ set shock-now True ]]]
+
+    [
+      ; In case the shock is at random times, chheck if it's gonna happen randomly
+      let random-time random-float 100
+      if random-shock-probability > random-time [set shock-now True ]
+    ]
+
+    if shock-now [
+      ; Execute Shock
+      ask municipalities [
+        set green-energy-openness 0.5 * green-energy-openness ; Decrease all of the green energy opennesses by 50%
+
+      ]
+
+      output-print (word "SHOCK: Shock 3 (Green energy openness) happened in " current-year " " current-month)
+    ]
+  ]
+
+
+  ; Handle shock 4 - Change in political variety, in case it is enabled ----------------------------------------------------------
+  if Shock-4-Political-variety [
+
+    ; Variable that is set true if for whatever reason this tick shock 1 will happen
+    let shock-now False
+
+    ; Check if the shock is scheduled or will happen at a random time
+    ifelse S4-Time = "At given times" [
+      ; In case times are scheduled, iterate over the shock timelist as specified in the procedure setup-shocks
+      foreach shock-4-times [x -> if current-year = item 0 x and current-month = item 1 x [ set shock-now True ]]]
+
+    [
+      ; In case the shock is at random times, chheck if it's gonna happen randomly
+      let random-time random-float 100
+      if random-shock-probability > random-time [set shock-now True ]
+    ]
+
+    if shock-now [
+      ; Execute Shock
+      ask municipalities [
+        set political-variety 0.5 * political-variety ; Decrease all of the political variety values by 50%
+
+      ]
+
+      output-print (word "SHOCK: Shock 4 (Political variety) happened in " current-year " " current-month)
+    ]
   ]
 
 
@@ -1397,10 +1516,10 @@ per year
 HORIZONTAL
 
 SWITCH
-1303
-97
-1595
-130
+1757
+92
+2049
+125
 show-municipal-decisions
 show-municipal-decisions
 1
@@ -1408,25 +1527,25 @@ show-municipal-decisions
 -1000
 
 SLIDER
-937
-222
-1242
-255
+938
+220
+1243
+253
 administrative-network-meetings
 administrative-network-meetings
 0
 25
-12.0
+1.0
 1
 1
 per year
 HORIZONTAL
 
 SWITCH
-1303
-60
-1594
-93
+1757
+55
+2048
+88
 show-regional-meetings
 show-regional-meetings
 1
@@ -1444,10 +1563,10 @@ Levers -------------------------------------------
 1
 
 TEXTBOX
-1297
-37
-1568
-79
+1751
+32
+2022
+74
 Visuals -----------------------------------
 11
 0.0
@@ -1464,10 +1583,10 @@ TEXTBOX
 1
 
 SWITCH
-1441
-215
-1595
-248
+1895
+210
+2049
+243
 show-externalities
 show-externalities
 1
@@ -1490,10 +1609,10 @@ per year
 HORIZONTAL
 
 SWITCH
-1303
-136
-1594
-169
+1757
+131
+2048
+164
 show-municipal-network
 show-municipal-network
 0
@@ -1501,10 +1620,10 @@ show-municipal-network
 -1000
 
 SWITCH
-1304
-215
-1436
-248
+1758
+210
+1890
+243
 show-projects
 show-projects
 1
@@ -1539,7 +1658,7 @@ end-year
 end-year
 2030
 2100
-2050.0
+2070.0
 5
 1
 NIL
@@ -1588,7 +1707,7 @@ green-energy-openness-change
 green-energy-openness-change
 -5
 5
-5.0
+2.0
 1
 1
 %
@@ -1669,7 +1788,7 @@ rounds-per-meeting
 rounds-per-meeting
 0
 15
-10.0
+4.0
 1
 1
 NIL
@@ -1691,10 +1810,10 @@ NIL
 HORIZONTAL
 
 SWITCH
-1303
-175
-1594
-208
+1757
+170
+2048
+203
 show-trust-changes
 show-trust-changes
 1
@@ -1720,7 +1839,7 @@ max-rounds-before-failed
 max-rounds-before-failed
 0
 25
-25.0
+24.0
 1
 1
 NIL
@@ -1735,17 +1854,6 @@ Shocks ------------------------------
 11
 0.0
 1
-
-SWITCH
-1657
-62
-1878
-95
-enable-shocks
-enable-shocks
-0
-1
--1000
 
 TEXTBOX
 896
@@ -1768,46 +1876,123 @@ TEXTBOX
 1
 
 TEXTBOX
-1660
-39
-1928
-81
+1296
+37
+1564
+79
 Shocks -----------------------------------
 11
 0.0
 1
 
 TEXTBOX
-1614
-61
-1629
-327
+1729
+60
+1744
+326
 |\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|
 11
 0.0
 1
 
 SWITCH
-1660
-138
-1827
-171
-Shock-trust-drop
-Shock-trust-drop
-1
+1297
+70
+1550
+103
+Shock-1-Trust-drop
+Shock-1-Trust-drop
+0
 1
 -1000
 
 SWITCH
-1661
-196
-1880
-229
-Shock-meeting-frequency
-Shock-meeting-frequency
+1297
+119
+1550
+152
+Shock-2-Meeting-frequency
+Shock-2-Meeting-frequency
+0
+1
+-1000
+
+SWITCH
+1296
+168
+1550
+201
+Shock-3-Green-energy-openness
+Shock-3-Green-energy-openness
+0
+1
+-1000
+
+SWITCH
+1298
+219
+1550
+252
+Shock-4-Political-variety
+Shock-4-Political-variety
 1
 1
 -1000
+
+CHOOSER
+1569
+63
+1707
+108
+S1-Time
+S1-Time
+"Random" "At given times"
+0
+
+CHOOSER
+1569
+114
+1707
+159
+S2-Time
+S2-Time
+"Random" "At given times"
+1
+
+CHOOSER
+1569
+165
+1707
+210
+S3-Time
+S3-Time
+"Random" "At given times"
+0
+
+CHOOSER
+1569
+214
+1707
+259
+S4-Time
+S4-Time
+"Random" "At given times"
+1
+
+SLIDER
+1297
+279
+1710
+312
+random-shock-probability
+random-shock-probability
+0
+100
+8.5
+0.5
+1
+%
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
