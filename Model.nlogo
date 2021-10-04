@@ -32,6 +32,9 @@ globals [
   experience-scaling-factor ; integer
   n-of-most-trusted-colleagues ; integer
   percentage-delayed ; decimal
+  negotiations-ending-with-agreement ; KPI, integer
+  negotiations-failed-due-to-drop-out ; KPI, integer
+  negotiations-failed-because-of-too-many-rounds ; KPI, integer
 
 
   ; Shocks
@@ -123,6 +126,9 @@ to setup
   set percentage-delayed 0.5
   set projects-accepted 0
   set projects-rejected 0
+  set negotiations-ending-with-agreement 0
+  set negotiations-failed-due-to-drop-out 0
+  set negotiations-failed-because-of-too-many-rounds 0
 
 
   setup-municipalities
@@ -328,7 +334,6 @@ to go
 
     communicate-informally
   ]
-
 
   ; Administrative Network
   ; distribute the meetings that are still to be conducted this year evenly across the months
@@ -716,6 +721,7 @@ to communicate-informally
     ; identify the project being discussed
     let project-discussed [other-end] of my-project-connections
 
+
     ; identify the project owner's most trusted friends
     let owner-friend-connections max-n-of n-of-most-trusted-colleagues my-municipality-connections [trust]
     let owner-friends (turtle-set [other-end] of owner-friend-connections) with [any? my-project-connections with [owner AND [project-phase] of other-end = 2 AND member? [project-type] of other-end own-projects]]
@@ -728,7 +734,9 @@ to communicate-informally
 
         ; The friends need to create a link with the project if there isn't already a link between the friends and the project being discussed
         if not member? project-discussed owner-friend-projects [
-          create-project-connections-from project-discussed
+          create-project-connections-from project-discussed [
+              set owner False
+              set created-during-informal-communication True]
         ]
 
         ; select the link between the friends and the project being discussed
@@ -863,6 +871,8 @@ to conduct-meeting
         ; Case 1: Did everyone accept?
         if not member? False [accept-offer] of my-project-connections [
 
+          set negotiations-ending-with-agreement negotiations-ending-with-agreement + 1
+
           ; Check if there was no windpark with 0 megawatts accepted
           ifelse item 1 last offer-list <= 0 [
             if show-regional-meetings [output-print (word "An agreement has been reached that no wind shall be implemented " project-type " in " [[name] of other-end] of my-project-connections with [owner = True])]
@@ -893,6 +903,7 @@ to conduct-meeting
 
           fail-negotiation who
           set projects-rejected projects-rejected + 1
+          set negotiations-failed-due-to-drop-out negotiations-failed-due-to-drop-out + 1
 
 
         ]
@@ -905,6 +916,7 @@ to conduct-meeting
 
           fail-negotiation who
           set projects-rejected projects-rejected + 1
+          set negotiations-failed-because-of-too-many-rounds negotiations-failed-because-of-too-many-rounds + 1
 
         ]
 
@@ -1122,7 +1134,7 @@ end
 
 to-report select-project-to-be-discussed
 
-  ; In case there isn't any projects that are prioritized
+  ; In case there aren't any projects that are prioritized
   if not any? projects with [project-priority > 0 and project-phase = 0] [
 
     if any? projects with [project-phase = 0 AND any? my-project-connections and negotiation-failed = False] [
@@ -1361,15 +1373,23 @@ end
 to-report get-desired-range [municipality-id type-of-project owner-of-project]
 
   let selected-municipality municipality municipality-id
-
-
-
-
-
   report [inhabitants] of selected-municipality
+end
 
+to-report negative-externalities
+  report count project-connections with [negatively-affected = True]
+end
 
+to-report positive-externalities
+  report count project-connections with [positively-affected = True]
+end
 
+to-report average-degree-centrality
+  let degree-centrality 0
+  ask municipalities [
+    set degree-centrality sum [trust] of my-municipality-connections
+  ]
+  report degree-centrality / count municipality-connections
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -1548,7 +1568,7 @@ SWITCH
 88
 show-regional-meetings
 show-regional-meetings
-1
+0
 1
 -1000
 
@@ -1626,7 +1646,7 @@ SWITCH
 243
 show-projects
 show-projects
-1
+0
 1
 -1000
 
@@ -1803,7 +1823,7 @@ agreement-factor
 agreement-factor
 1
 10
-5.0
+6.0
 1
 1
 NIL
@@ -1902,7 +1922,7 @@ SWITCH
 103
 Shock-1-Trust-drop
 Shock-1-Trust-drop
-0
+1
 1
 -1000
 
@@ -1913,7 +1933,7 @@ SWITCH
 152
 Shock-2-Meeting-frequency
 Shock-2-Meeting-frequency
-0
+1
 1
 -1000
 
@@ -1924,7 +1944,7 @@ SWITCH
 201
 Shock-3-Green-energy-openness
 Shock-3-Green-energy-openness
-0
+1
 1
 -1000
 
