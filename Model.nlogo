@@ -65,7 +65,6 @@ projects-own [
   installed-power
   project-phase ; 0 = project is proposed as an issue (regional discussion); 1 = project is in permission process (local discussion), 2 = project is implemented, 3 = project is decomissioned
   project-type
-  project-size
   lifespan
   acceptance-threshold
   number-samples
@@ -887,6 +886,9 @@ to conduct-meeting
             set project-priority 0
             set project-phase 1
 
+            ; Set the installed power to the offer that has been discussed
+            set installed-power item 1 last offer-list
+
             change-trust who 0.5
 
             set projects-accepted projects-accepted + 1
@@ -1124,8 +1126,6 @@ to-report get-stance [project-owner? a-project my-municipality]
 
   ; Determine the range
 
-
-
   report (list lower-threshold upper-threshold concession-step objective)
 
 end
@@ -1358,17 +1358,28 @@ end
 ;;;;;;;;;;;;;;;;;;;;;;;; REPORTER FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;
 
 
-to-report current-wind-production
+to-report current-wind-capacity
   report sum [installed-power] of projects with [active AND member? project-type (list "windpark-small" "windpark-medium" "windpark-large")]
 end
 
-to-report current-solar-production
+to-report current-wind-production ; returns the current solar production in GWh
+  let capacity current-wind-capacity
+  let production capacity * 2730 ; On average in the Netherlands, one MW of installed wind capacity produces around 2730 MWh of electricity a year (source: https://www.rvo.nl/subsidie-en-financieringswijzer/sde/stand-van-zaken-aanvragen)
+  report production / (1000000) ; Convert the production in GWh
+end
+
+to-report current-solar-capacity
     report sum [installed-power] of projects with [active AND member? project-type (list "solarpark-small" "solarpark-medium" "solarpark-large") ]
 end
 
-to-report current-urban-production
-    report sum [installed-power] of projects with [active AND project-type = "solarpark-urban" ]
+to-report current-solar-production ; returns the current solar production in GWh
+  let capacity current-solar-capacity
+  let production capacity * 945 ; On average in the Netherlands, one MW of installed solar capacity produces around 945 MWh of electricity a year (source: https://www.rvo.nl/subsidie-en-financieringswijzer/sde/stand-van-zaken-aanvragen)
+  report production / (1000000) ; Convert the production in GWh
 end
+
+
+
 
 to-report get-desired-range [municipality-id type-of-project owner-of-project]
 
@@ -1529,7 +1540,7 @@ total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-16.0
+25.0
 1
 1
 per year
@@ -1555,7 +1566,7 @@ administrative-network-meetings
 administrative-network-meetings
 0
 25
-1.0
+25.0
 1
 1
 per year
@@ -1568,7 +1579,7 @@ SWITCH
 88
 show-regional-meetings
 show-regional-meetings
-0
+1
 1
 -1000
 
@@ -1635,7 +1646,7 @@ SWITCH
 164
 show-municipal-network
 show-municipal-network
-0
+1
 1
 -1000
 
@@ -1646,7 +1657,7 @@ SWITCH
 243
 show-projects
 show-projects
-0
+1
 1
 -1000
 
@@ -1655,7 +1666,7 @@ PLOT
 377
 1913
 693
-MW implemented
+MW capacity implemented
 NIL
 NIL
 0.0
@@ -1666,8 +1677,8 @@ true
 true
 "" ""
 PENS
-"Wind" 1.0 0 -11221820 true "" "plot current-wind-production"
-"Solar" 1.0 0 -1184463 true "" "plot current-solar-production"
+"Wind" 1.0 0 -11221820 true "" "plot current-wind-capacity"
+"Solar" 1.0 0 -1184463 true "" "plot current-solar-capacity"
 
 SLIDER
 585
@@ -1678,7 +1689,7 @@ end-year
 end-year
 2030
 2100
-2070.0
+2030.0
 5
 1
 NIL
@@ -1700,7 +1711,6 @@ true
 true
 "" ""
 PENS
-"Urban" 1.0 0 -16777216 true "" "plot urban-area-trust"
 "A4" 1.0 0 -7500403 true "" "plot A4-area-trust"
 "A12" 1.0 0 -2674135 true "" "plot A12-area-trust"
 "A15" 1.0 0 -955883 true "" "plot A15-area-trust"
@@ -1727,7 +1737,7 @@ green-energy-openness-change
 green-energy-openness-change
 -5
 5
-2.0
+5.0
 1
 1
 %
@@ -1859,21 +1869,11 @@ max-rounds-before-failed
 max-rounds-before-failed
 0
 25
-24.0
+18.0
 1
 1
 NIL
 HORIZONTAL
-
-TEXTBOX
-286
-34
-546
-76
-Shocks ------------------------------
-11
-0.0
-1
 
 TEXTBOX
 896
@@ -2013,6 +2013,25 @@ random-shock-probability
 1
 %
 HORIZONTAL
+
+PLOT
+1922
+376
+2180
+694
+Yearly renewable electricity production [TWh]
+Time
+TWh
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"Solar" 1.0 0 -987046 true "" "plot current-solar-production"
+"Wind" 1.0 0 -13791810 true "" "plot current-wind-production"
 
 @#$#@#$#@
 ## WHAT IS IT?
