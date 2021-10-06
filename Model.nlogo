@@ -35,6 +35,7 @@ globals [
   negotiations-ending-with-agreement ; KPI, integer
   negotiations-failed-due-to-drop-out ; KPI, integer
   negotiations-failed-because-of-too-many-rounds ; KPI, integer
+  overall-time-saved ; KPI, integer
 
 
   ; Shocks
@@ -128,6 +129,7 @@ to setup
   set negotiations-ending-with-agreement 0
   set negotiations-failed-due-to-drop-out 0
   set negotiations-failed-because-of-too-many-rounds 0
+  set overall-time-saved 0
 
 
   setup-municipalities
@@ -595,6 +597,10 @@ to manage-projects
     if implementation-time-left = 0 [
       ask other-end [
         set active True
+        print (word "year: " current-year " month: " current-month " tick: " ticks)
+        if member? project-type (list "windpark-small" "windpark-medium" "windpark-large")[
+        print [project-type] of self
+          print [installed-power] of self]
       ]
     ]
   ]
@@ -661,7 +667,7 @@ to manage-projects
         ]
       ]
 
-      ;then, itendify the municipalities that are negatively affected by the project just agreed upon at the regional level (and accepted at the municipal one)
+      ;then, idendify the municipalities that are negatively affected by the project just agreed upon at the regional level (and accepted at the municipal one)
       ask projects-agreed [
         let negatively-affected-municipalities turtle-set [other-end] of my-project-connections with [negatively-affected = True]
 
@@ -722,6 +728,7 @@ to communicate-informally
       if any? project-connections-to-be-helped [
         ask one-of project-connections-to-be-helped [
           set implementation-time-left implementation-time-left - percentage-shared
+          set overall-time-saved overall-time-saved + percentage-shared
         ]
       ]
 
@@ -1158,6 +1165,8 @@ to-report get-stance [project-owner? a-project my-municipality]
 
   ; Determine the range
 
+
+
   report (list lower-threshold upper-threshold concession-step objective)
 
 end
@@ -1397,24 +1406,30 @@ end
 to-report current-wind-production ; returns the current solar production in GWh
   let capacity current-wind-capacity
   let production capacity * 2730 ; On average in the Netherlands, one MW of installed wind capacity produces around 2730 MWh of electricity a year (source: https://www.rvo.nl/subsidie-en-financieringswijzer/sde/stand-van-zaken-aanvragen)
-  report production / (1000000) ; Convert the production in GWh
+  report production / (1000000) ; Convert the production in TWh
 end
 
 to-report current-solar-capacity
-    report sum [installed-power] of projects with [active AND member? project-type (list "solarpark-small" "solarpark-medium" "solarpark-large") ]
+  report sum [installed-power] of projects with [active AND member? project-type (list "solarpark-small" "solarpark-medium" "solarpark-large") ]
 end
 
 to-report current-solar-production ; returns the current solar production in GWh
   let capacity current-solar-capacity
   let production capacity * 945 ; On average in the Netherlands, one MW of installed solar capacity produces around 945 MWh of electricity a year (source: https://www.rvo.nl/subsidie-en-financieringswijzer/sde/stand-van-zaken-aanvragen)
-  report production / (1000000) ; Convert the production in GWh
+  report production / (1000000) ; Convert the production in TWh
+end
+
+to-report current-total-capacity
+  report current-solar-capacity + current-wind-capacity
+end
+
+to-report current-total-production
+  report current-solar-production + current-wind-production
 end
 
 
 
-
 to-report get-desired-range [municipality-id type-of-project owner-of-project]
-
   let selected-municipality municipality municipality-id
   report [inhabitants] of selected-municipality
 end
@@ -1433,6 +1448,10 @@ to-report average-degree-centrality
     set degree-centrality sum [trust] of my-municipality-connections
   ]
   report degree-centrality / count municipality-connections
+end
+
+to-report average-link-strenght
+  report [trust] of municipality-connections / count municipality-connections
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -1572,7 +1591,7 @@ total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-25.0
+12.0
 1
 1
 per year
@@ -1611,7 +1630,7 @@ SWITCH
 88
 show-regional-meetings
 show-regional-meetings
-1
+0
 1
 -1000
 
@@ -1678,7 +1697,7 @@ SWITCH
 164
 show-municipal-network
 show-municipal-network
-1
+0
 1
 -1000
 
@@ -1689,7 +1708,7 @@ SWITCH
 243
 show-projects
 show-projects
-1
+0
 1
 -1000
 
@@ -1698,7 +1717,7 @@ PLOT
 377
 1913
 693
-MW capacity implemented
+Capacity  implemented [MW]
 NIL
 NIL
 0.0
@@ -1709,8 +1728,9 @@ true
 true
 "" ""
 PENS
-"Wind" 1.0 0 -11221820 true "" "plot current-wind-capacity"
+"Wind" 1.0 0 -13791810 true "" "plot current-wind-capacity"
 "Solar" 1.0 0 -1184463 true "" "plot current-solar-capacity"
+"Total" 1.0 0 -16777216 true "" "plot current-total-capacity"
 
 SLIDER
 585
@@ -1769,7 +1789,7 @@ green-energy-openness-change
 green-energy-openness-change
 -5
 5
-5.0
+2.0
 1
 1
 %
@@ -1835,7 +1855,7 @@ search-area-meetings
 search-area-meetings
 0
 50
-19.0
+18.0
 1
 1
 per year
@@ -2046,7 +2066,6 @@ random-shock-probability
 %
 HORIZONTAL
 
-<<<<<<< HEAD
 SWITCH
 1297
 260
@@ -2065,9 +2084,9 @@ SLIDER
 298
 acceptance-threshold-for-medium-solarpark
 acceptance-threshold-for-medium-solarpark
-10
+0
 30
-20.0
+0.0
 1
 1
 NIL
@@ -2080,22 +2099,22 @@ SLIDER
 338
 acceptance-threshold-for-medium-windpark
 acceptance-threshold-for-medium-windpark
-20
-40
-30.0
+0
+50
+40.0
 1
 1
 NIL
 HORIZONTAL
-=======
+
 PLOT
 1922
-376
-2180
-694
+377
+2264
+690
 Yearly renewable electricity production [TWh]
-Time
-TWh
+NIL
+NIL
 0.0
 10.0
 0.0
@@ -2104,9 +2123,9 @@ true
 true
 "" ""
 PENS
-"Solar" 1.0 0 -987046 true "" "plot current-solar-production"
 "Wind" 1.0 0 -13791810 true "" "plot current-wind-production"
->>>>>>> 105f982801914a83748a077ad2b742f717596415
+"Solar" 1.0 0 -1184463 true "" "plot current-solar-production "
+"Total" 1.0 0 -16777216 true "" "plot current-total-production"
 
 @#$#@#$#@
 ## WHAT IS IT?
