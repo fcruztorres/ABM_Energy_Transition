@@ -260,12 +260,33 @@ to setup-projects
         set project-type item 0 data
         set installed-power item 1 data
         set lifespan item 2 data
-        set acceptance-threshold item 3 data
-        set number-samples item 4 data
-        set implementation-time (item 5 data) * 12 ; ticks
+        set number-samples item 3 data
+        set implementation-time (item 4 data) * 12 ; ticks
         set offer-list (list)
         set negotiation-failed False
         set project-priority 0
+
+        if project-type = "solarpark-small" [
+          set acceptance-threshold acceptance-threshold-for-medium-solarpark - 5
+        ]
+        if project-type = "solarpark-medium" [
+          set acceptance-threshold acceptance-threshold-for-medium-solarpark
+        ]
+        if project-type = "solarpark-large" [
+          set acceptance-threshold acceptance-threshold-for-medium-solarpark + 5
+        ]
+        if project-type = "windpark-small" [
+          set acceptance-threshold acceptance-threshold-for-medium-windpark - 5
+        ]
+        if project-type = "windpark-medium" [
+          set acceptance-threshold acceptance-threshold-for-medium-windpark
+        ]
+        if project-type = "windpark-large" [
+          set acceptance-threshold acceptance-threshold-for-medium-windpark + 5
+        ]
+
+
+
 
         let x-cor random-xcor
         let y-cor random-ycor
@@ -619,7 +640,6 @@ to manage-projects
         output-print (word "PROJECT ACCEPTED: " [project-type] of projects-agreed " in " [name] of self )
       ]
       ; move the project to the next phase (i.e., phase 2)
-      ; print projects-agreed
       ask projects-agreed [
         set project-phase 2
       ]
@@ -710,53 +730,65 @@ to communicate-informally
       ask municipality-connection-with close-friend [
         set trust min (list 100 (trust * trust-increase-in-informal-meetings)) ; increase by 1%
       ]
+
+
     ]
   ]
-
   ; when a municipality who is the owner of a project is also discussing it in the administrative network meetings (project phase = 0 and project priority is > 0)
   ; it forms a coalition with other municipalities with whom it developed a high trust until then. Concretely, this means that their upper and lower thresholds
-  ; for the negotiation on that project become aligned.
-  if [owner] of my-project-connections = True and [project-phase] of my-project-connections = 0 and [project-priority] of my-project-connections  > 0 [
+  ; for the negotiation on that project align across municipalities.
 
-    ; identify the project being discussed
-    let project-discussed [other-end] of my-project-connections
+  ; identify the project being discussed
+  let projects-owned turtle-set [other-end] of my-project-connections with [owner = True]
+  let project-under-discussion projects-owned with [project-phase = 0 AND project-priority = 100]
 
 
-    ; identify the project owner's most trusted friends
-    let owner-friend-connections max-n-of n-of-most-trusted-colleagues my-municipality-connections [trust]
-    let owner-friends (turtle-set [other-end] of owner-friend-connections) with [any? my-project-connections with [owner AND [project-phase] of other-end = 2 AND member? [project-type] of other-end own-projects]]
+  if any? project-under-discussion [
+    ask project-under-discussion [
 
-    if any? owner-friends [
-      ask owner-friends [
+      ; identify the owner of the project being discussed (if any, it will only be one because only one project at a time is discussed in the conduct-meeting procedure)
+      let owner-of-project-under-discussion turtle-set [other-end] of my-project-connections with [owner = True]
+      let project-under-discussion-owner-connection my-project-connections with [owner = True]
 
-        ; identify friends' projects
-        let owner-friend-projects [other-end] of my-project-connections
+      ask owner-of-project-under-discussion [
 
-        ; The friends need to create a link with the project if there isn't already a link between the friends and the project being discussed
-        if not member? project-discussed owner-friend-projects [
-          create-project-connections-from project-discussed [
+        ; identify the project owner's most trusted friends
+        let owner-friends-connections max-n-of n-of-most-trusted-colleagues my-municipality-connections [trust]
+        let owner-friends (turtle-set [other-end] of owner-friends-connections)
+
+        ask owner-friends [
+
+          ; identify friends' projects
+          let owner-friends-projects turtle-set [other-end] of my-project-connections
+
+
+          ; friends need to create a link with the project if there isn't already a link between the friends and the project being discussed
+          if not any? owner-friends-projects OR not member? one-of project-under-discussion owner-friends-projects [  ; one-of is used to turn the agentset of 1 turtle (project-under-discussion) into a single agent
+            create-project-connections-from project-under-discussion [
               set owner False
               set created-during-informal-communication True]
-        ]
+          ]
 
-        ; select the link between the friends and the project being discussed
-        let project-discussed-connection my-project-connections with [other-end = project-discussed]
+          ; select the link between the friends and the project being discussed
+          let project-under-discussion-friends-connections my-project-connections with [other-end = one-of project-under-discussion]
 
-        ; if the friends were not negatively affected by a project being discussed
-        if [negatively-affected] of project-discussed-connection = False [
-          ask [other-end] of project-discussed-connection [
-            output-print "THRESHOLDS ALIGN"
+          ; if the friends were not negatively affected by a project being discussed
+          if [negatively-affected] of project-under-discussion-friends-connections != True [
 
             ; align thresholds of friends to the project owner's ones
-            set upper-threshold [upper-threshold] of project-discussed
-            set lower-threshold [lower-threshold] of project-discussed
+            ask project-under-discussion-friends-connections [
+              set upper-threshold item 0 [upper-threshold] of project-under-discussion-owner-connection
+              set lower-threshold item 0 [lower-threshold] of project-under-discussion-owner-connection
+
+              if show-informal-communication-alignments [
+              output-print (word "ALIGNMENT BETWEEN " one-of owner-of-project-under-discussion " and " one-of owner-friends )
+              ]
+            ]
           ]
         ]
       ]
     ]
   ]
-
-
 
 end
 
@@ -1708,10 +1740,10 @@ PENS
 "Mean Trust in Region" 1.0 0 -10899396 true "" "plot regional-trust"
 
 SWITCH
-585
-272
-871
-305
+269
+63
+555
+96
 random-intial-trust
 random-intial-trust
 0
@@ -1749,10 +1781,10 @@ political-variety-change
 HORIZONTAL
 
 TEXTBOX
-585
-36
-900
-64
+259
+28
+574
+56
 Uncertainties -------------------------------------
 11
 0.0
@@ -1774,10 +1806,10 @@ per 10,000 inhabitants
 HORIZONTAL
 
 SWITCH
-584
-308
-871
-341
+268
+99
+555
+132
 enable-formal-meetings
 enable-formal-meetings
 0
@@ -1866,16 +1898,6 @@ NIL
 HORIZONTAL
 
 TEXTBOX
-286
-34
-546
-76
-Shocks ------------------------------
-11
-0.0
-1
-
-TEXTBOX
 896
 64
 911
@@ -1886,10 +1908,10 @@ TEXTBOX
 1
 
 TEXTBOX
-551
-54
-566
-124
+253
+58
+268
+128
 |\n|\n|\n|\n|\n
 11
 0.0
@@ -2000,10 +2022,10 @@ S4-Time
 1
 
 SLIDER
-1297
-279
-1710
-312
+1295
+303
+1708
+336
 random-shock-probability
 random-shock-probability
 0
@@ -2012,6 +2034,47 @@ random-shock-probability
 0.5
 1
 %
+HORIZONTAL
+
+SWITCH
+1297
+260
+1550
+293
+show-informal-communication-alignments
+show-informal-communication-alignments
+1
+1
+-1000
+
+SLIDER
+585
+265
+870
+298
+acceptance-threshold-for-medium-solarpark
+acceptance-threshold-for-medium-solarpark
+10
+30
+20.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+586
+305
+870
+338
+acceptance-threshold-for-medium-windpark
+acceptance-threshold-for-medium-windpark
+20
+40
+30.0
+1
+1
+NIL
 HORIZONTAL
 
 @#$#@#$#@
