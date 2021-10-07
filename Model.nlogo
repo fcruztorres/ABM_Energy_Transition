@@ -5,6 +5,7 @@ globals [
   proposed-projects
 
   ; Timekeeping
+  start-year
   current-month
   current-year
 
@@ -111,8 +112,11 @@ to setup
   clear-all
   reset-ticks
 
+  ; Set start of simulation time
+  set start-year 2021
+
   set current-month 1
-  set current-year 2021
+  set current-year start-year
   set meetings-conducted 0
   set projects-proposed 0
   set projects-rejected 0
@@ -332,6 +336,12 @@ to setup-shocks
   set shock-2-times [[2035 1]]
   set shock-3-times [[2040 1]]
   set shock-4-times [[2045 1]]
+
+  ; In case random shocks are specified, override the lists with random shocks
+  if S1-time = "Random" [set shock-1-times random-shocks S1-number-shocks 1 Shock-1-Trust-drop]
+  if S2-time = "Random" [set shock-2-times random-shocks S2-number-shocks 2 Shock-2-Meeting-frequency]
+  if S3-time = "Random" [set shock-3-times random-shocks S3-number-shocks 3 Shock-3-Green-energy-openness]
+  if S4-time = "Random" [set shock-1-times random-shocks S4-number-shocks 4 Shock-4-Political-variety]
 
 end
 
@@ -1262,16 +1272,8 @@ to shock
     ; Variable that is set true if for whatever reason this tick shock 1 will happen
     let shock-now False
 
-    ; Check if the shock is scheduled or will happen at a random time
-    ifelse S1-Time = "At given times" [
-      ; In case times are scheduled, iterate over the shock timelist as specified in the procedure setup-shocks
-      foreach shock-1-times [x -> if current-year = item 0 x and current-month = item 1 x [ set shock-now True ]]]
-
-    [
-      ; In case the shock is at random times, chheck if it's gonna happen randomly
-      let random-time random-float 100
-      if random-shock-probability > random-time [set shock-now True ]
-    ]
+    ; In case times are scheduled, iterate over the shock timelist as specified in the procedure setup-shocks
+    foreach shock-1-times [x -> if current-year = item 0 x and current-month = item 1 x [ set shock-now True ]]
 
     if shock-now [
       ; Execute Shock
@@ -1291,16 +1293,8 @@ to shock
     ; Variable that is set true if for whatever reason this tick shock 1 will happen
     let shock-now False
 
-    ; Check if the shock is scheduled or will happen at a random time
-    ifelse S2-Time = "At given times" [
-      ; In case times are scheduled, iterate over the shock timelist as specified in the procedure setup-shocks
-      foreach shock-2-times [x -> if current-year = item 0 x and current-month = item 1 x [ set shock-now True ]]]
-
-    [
-      ; In case the shock is at random times, chheck if it's gonna happen randomly
-      let random-time random-float 100
-      if random-shock-probability > random-time [set shock-now True ]
-    ]
+    ; In case times are scheduled, iterate over the shock timelist as specified in the procedure setup-shocks
+    foreach shock-2-times [x -> if current-year = item 0 x and current-month = item 1 x [ set shock-now True ]]
 
     if shock-now [
       ; Execute Shock
@@ -1317,16 +1311,8 @@ to shock
     ; Variable that is set true if for whatever reason this tick shock 1 will happen
     let shock-now False
 
-    ; Check if the shock is scheduled or will happen at a random time
-    ifelse S3-Time = "At given times" [
-      ; In case times are scheduled, iterate over the shock timelist as specified in the procedure setup-shocks
-      foreach shock-3-times [x -> if current-year = item 0 x and current-month = item 1 x [ set shock-now True ]]]
-
-    [
-      ; In case the shock is at random times, chheck if it's gonna happen randomly
-      let random-time random-float 100
-      if random-shock-probability > random-time [set shock-now True ]
-    ]
+    ; In case times are scheduled, iterate over the shock timelist as specified in the procedure setup-shocks
+    foreach shock-3-times [x -> if current-year = item 0 x and current-month = item 1 x [ set shock-now True ]]
 
     if shock-now [
       ; Execute Shock
@@ -1346,16 +1332,8 @@ to shock
     ; Variable that is set true if for whatever reason this tick shock 1 will happen
     let shock-now False
 
-    ; Check if the shock is scheduled or will happen at a random time
-    ifelse S4-Time = "At given times" [
-      ; In case times are scheduled, iterate over the shock timelist as specified in the procedure setup-shocks
-      foreach shock-4-times [x -> if current-year = item 0 x and current-month = item 1 x [ set shock-now True ]]]
-
-    [
-      ; In case the shock is at random times, chheck if it's gonna happen randomly
-      let random-time random-float 100
-      if random-shock-probability > random-time [set shock-now True ]
-    ]
+    ; In case times are scheduled, iterate over the shock timelist as specified in the procedure setup-shocks
+    foreach shock-4-times [x -> if current-year = item 0 x and current-month = item 1 x [ set shock-now True ]]
 
     if shock-now [
       ; Execute Shock
@@ -1452,6 +1430,29 @@ end
 
 to-report average-link-strenght
   report [trust] of municipality-connections / count municipality-connections
+end
+
+; Procedure that creates a given number of shocks at random times during the simulation time
+to-report random-shocks [number-shocks shock-number shock-enabled]
+
+  ; Calculate the number of ticks
+  let number-simulation-ticks (end-year - start-year) * 12
+
+  let shock-ticks (list)
+
+  ; Generate a list of random shock times
+  repeat number-shocks [
+
+    let shock-time random number-simulation-ticks
+    set shock-time (list ((floor (shock-time / 12)) + start-year) ((shock-time mod 12) + 1))
+    set shock-ticks lput shock-time shock-ticks
+
+  ]
+
+  if shock-enabled [output-print (word "SHOCK: Random times of shock " shock-number " set to " shock-ticks)]
+
+  report shock-ticks
+
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -1598,10 +1599,10 @@ per year
 HORIZONTAL
 
 SWITCH
-1757
-92
-2049
-125
+1943
+91
+2235
+124
 show-municipal-decisions
 show-municipal-decisions
 1
@@ -1624,10 +1625,10 @@ per year
 HORIZONTAL
 
 SWITCH
-1757
-55
-2048
-88
+1943
+54
+2234
+87
 show-regional-meetings
 show-regional-meetings
 0
@@ -1645,10 +1646,10 @@ Levers -------------------------------------------
 1
 
 TEXTBOX
-1751
-32
-2022
-74
+1937
+31
+2208
+73
 Visuals -----------------------------------
 11
 0.0
@@ -1665,10 +1666,10 @@ TEXTBOX
 1
 
 SWITCH
-1895
-210
-2049
-243
+2081
+209
+2235
+242
 show-externalities
 show-externalities
 1
@@ -1691,10 +1692,10 @@ per year
 HORIZONTAL
 
 SWITCH
-1757
-131
-2048
-164
+1943
+130
+2234
+163
 show-municipal-network
 show-municipal-network
 0
@@ -1702,10 +1703,10 @@ show-municipal-network
 -1000
 
 SWITCH
-1758
-210
-1890
-243
+1944
+209
+2076
+242
 show-projects
 show-projects
 0
@@ -1741,7 +1742,7 @@ end-year
 end-year
 2030
 2100
-2030.0
+2065.0
 5
 1
 NIL
@@ -1789,7 +1790,7 @@ green-energy-openness-change
 green-energy-openness-change
 -5
 5
-2.0
+0.0
 1
 1
 %
@@ -1892,10 +1893,10 @@ NIL
 HORIZONTAL
 
 SWITCH
-1757
-170
-2048
-203
+1943
+169
+2234
+202
 show-trust-changes
 show-trust-changes
 1
@@ -1958,10 +1959,10 @@ Shocks -----------------------------------
 1
 
 TEXTBOX
-1729
-60
-1744
-326
+1915
+59
+1930
+325
 |\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|
 11
 0.0
@@ -1974,7 +1975,7 @@ SWITCH
 103
 Shock-1-Trust-drop
 Shock-1-Trust-drop
-1
+0
 1
 -1000
 
@@ -2060,17 +2061,17 @@ random-shock-probability
 random-shock-probability
 0
 100
-8.5
+22.5
 0.5
 1
 %
 HORIZONTAL
 
 SWITCH
-1297
-260
-1550
-293
+1944
+250
+2234
+283
 show-informal-communication-alignments
 show-informal-communication-alignments
 1
@@ -2126,6 +2127,66 @@ PENS
 "Wind" 1.0 0 -13791810 true "" "plot current-wind-production"
 "Solar" 1.0 0 -1184463 true "" "plot current-solar-production "
 "Total" 1.0 0 -16777216 true "" "plot current-total-production"
+
+SLIDER
+1716
+71
+1890
+104
+S1-number-shocks
+S1-number-shocks
+0
+10
+7.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1716
+120
+1890
+153
+S2-number-shocks
+S2-number-shocks
+0
+10
+1.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1718
+169
+1892
+202
+S3-number-shocks
+S3-number-shocks
+0
+10
+3.0
+1
+1
+NIL
+HORIZONTAL
+
+SLIDER
+1718
+217
+1892
+250
+S4-number-shocks
+S4-number-shocks
+0
+10
+1.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
