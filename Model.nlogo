@@ -348,6 +348,12 @@ to setup-shocks
   if S3-time = "Random" [set shock-3-times random-shocks S3-number-shocks 3 Shock-3-Green-energy-openness]
   if S4-time = "Random" [set shock-1-times random-shocks S4-number-shocks 4 Shock-4-Political-variety]
 
+  ; In case shocks are disabled, delete the list of point in time for correct reporting
+  if Shock-1-Trust-drop = False [set shock-1-times (list)]
+  if Shock-2-Meeting-frequency = False [set shock-2-times (list)]
+  if Shock-3-Green-energy-openness = False [set shock-3-times (list)]
+  if Shock-4-Political-variety = False [set shock-4-times (list)]
+
 end
 
 
@@ -1473,9 +1479,11 @@ to-report average-political-variety
 end
 
 to-report current-coalitions
-
   report count project-connections with [created-during-informal-communication and accept-offer = False]
+end
 
+to-report shock-times
+  report (list "Shock 1:" shock-1-times "Shock 2:" shock-2-times  "Shock 3:" shock-3-times  "Shock 4:" shock-4-times)
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
@@ -2759,191 +2767,110 @@ NetLogo 6.2.0
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="outcomes_with_and_without_formal_meetings" repetitions="1" runMetricsEveryStep="true">
+  <experiment name="No Shocks" repetitions="25" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
+    <metric>current-wind-capacity</metric>
     <metric>current-wind-production</metric>
+    <metric>current-solar-capacity</metric>
     <metric>current-solar-production</metric>
-    <metric>current-urban-production</metric>
-    <metric>count project-connections with [owner = True]</metric>
-    <metric>count projects with [active = True]</metric>
-    <metric>projects-rejected</metric>
-    <metric>regional-trust</metric>
-    <steppedValueSet variable="random-seed" first="0" step="1" last="5"/>
+    <metric>current-total-capacity</metric>
+    <metric>current-total-production</metric>
+    <metric>average-link-strength</metric>
+    <metric>current-projects-proposed</metric>
+    <metric>current-active-projects</metric>
+    <metric>current-projects-rejected</metric>
+    <metric>negotiations-ending-with-agreement</metric>
+    <metric>negotiations-failed-due-to-drop-out</metric>
+    <metric>negotiations-failed-because-of-too-many-rounds</metric>
+    <metric>overall-time-saved</metric>
+    <metric>negative-externalities</metric>
+    <metric>positive-externalities</metric>
+    <metric>average-green-energy-openness</metric>
+    <metric>average-political-variety</metric>
+    <metric>total-coalitions</metric>
+    <metric>current-coalitions</metric>
+    <metric>shock-times</metric>
+    <enumeratedValueSet variable="Shock-1-Trust-drop">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="S1-Time">
+      <value value="&quot;Random&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="S1-number-shocks">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Shock-2-Meeting-frequency">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="S2-Time">
+      <value value="&quot;Random&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="S2-number-shocks">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Shock-3-Green-energy-openness">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="S3-Time">
+      <value value="&quot;Random&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="S3-number-shocks">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="Shock-4-Political-variety">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="S4-Time">
+      <value value="&quot;Random&quot;"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="S4-number-shocks">
+      <value value="1"/>
+    </enumeratedValueSet>
     <enumeratedValueSet variable="green-energy-openness-change">
-      <value value="-5"/>
       <value value="0"/>
-      <value value="5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="random-intial-trust">
-      <value value="false"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="informal-meetings-frequency">
-      <value value="12"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="show-externalities">
-      <value value="false"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="total-project-proposal-frequency">
-      <value value="12"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="show-municipal-decisions">
-      <value value="false"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="administrative-network-meetings">
-      <value value="12"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="max-project-capacity">
-      <value value="12"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="show-municipal-network">
-      <value value="false"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="show-regional-meetings">
-      <value value="false"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="show-projects">
-      <value value="true"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="political-variety-change">
-      <value value="-5"/>
       <value value="0"/>
-      <value value="5"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="end-year">
-      <value value="2050"/>
+    <enumeratedValueSet variable="informal-meetings-frequency">
+      <value value="10"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="enable-formal-meetings">
-      <value value="true"/>
-      <value value="false"/>
+    <enumeratedValueSet variable="acceptance-threshold-for-medium-solarpark">
+      <value value="1"/>
     </enumeratedValueSet>
-  </experiment>
-  <experiment name="experiment" repetitions="1" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <metric>count turtles</metric>
     <enumeratedValueSet variable="search-area-meetings">
-      <value value="31"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="random-intial-trust">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="enable-shocks">
-      <value value="false"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="show-municipal-decisions">
-      <value value="true"/>
+      <value value="20"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="rounds-per-meeting">
-      <value value="9"/>
+      <value value="4"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="agreement-factor">
-      <value value="5"/>
+      <value value="9"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="show-regional-meetings">
-      <value value="true"/>
+    <enumeratedValueSet variable="acceptance-threshold-for-medium-windpark">
+      <value value="40"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="political-variety-change">
-      <value value="1"/>
+    <enumeratedValueSet variable="total-project-proposal-frequency">
+      <value value="13"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="green-energy-openness-change">
-      <value value="1"/>
+    <enumeratedValueSet variable="administrative-network-meetings">
+      <value value="25"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="show-trust-changes">
-      <value value="true"/>
+    <enumeratedValueSet variable="max-project-capacity">
+      <value value="24"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="max-rounds-before-failed">
+      <value value="25"/>
     </enumeratedValueSet>
     <enumeratedValueSet variable="enable-formal-meetings">
       <value value="true"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="informal-meetings-frequency">
-      <value value="11"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="total-project-proposal-frequency">
-      <value value="17"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="show-externalities">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="administrative-network-meetings">
-      <value value="12"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="max-project-capacity">
-      <value value="14"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="max-rounds-before-failed">
-      <value value="11"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="show-municipal-network">
-      <value value="true"/>
-    </enumeratedValueSet>
     <enumeratedValueSet variable="end-year">
-      <value value="2090"/>
+      <value value="2030"/>
     </enumeratedValueSet>
-    <enumeratedValueSet variable="show-projects">
-      <value value="true"/>
-    </enumeratedValueSet>
-  </experiment>
-  <experiment name="123" repetitions="50" runMetricsEveryStep="true">
-    <setup>setup</setup>
-    <go>go</go>
-    <metric>count turtles</metric>
-    <steppedValueSet variable="search-area-meetings" first="1" step="30" last="5"/>
     <enumeratedValueSet variable="random-intial-trust">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="enable-shocks">
       <value value="false"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="show-municipal-decisions">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="rounds-per-meeting">
-      <value value="9"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="agreement-factor">
-      <value value="5"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="show-regional-meetings">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="political-variety-change">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="green-energy-openness-change">
-      <value value="1"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="show-trust-changes">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="enable-formal-meetings">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="informal-meetings-frequency">
-      <value value="11"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="total-project-proposal-frequency">
-      <value value="17"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="show-externalities">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="administrative-network-meetings">
-      <value value="12"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="max-project-capacity">
-      <value value="14"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="max-rounds-before-failed">
-      <value value="11"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="show-municipal-network">
-      <value value="true"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="end-year">
-      <value value="2090"/>
-    </enumeratedValueSet>
-    <enumeratedValueSet variable="show-projects">
-      <value value="true"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
