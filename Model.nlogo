@@ -33,10 +33,13 @@ globals [
   experience-scaling-factor ; integer
   n-of-most-trusted-colleagues ; integer
   percentage-delayed ; decimal
+
+
   negotiations-ending-with-agreement ; KPI, integer
   negotiations-failed-due-to-drop-out ; KPI, integer
   negotiations-failed-because-of-too-many-rounds ; KPI, integer
   overall-time-saved ; KPI, integer
+  total-coalitions ; KPI, integer
 
 
   ; Shocks
@@ -109,38 +112,40 @@ project-connections-own [
 
 ;;;;;;;;;;;;;;;;;;;;;;;;  SETUP FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;
 to setup
+  ; Reset everything
   clear-all
   reset-ticks
 
   ; Set start of simulation time
   set start-year 2021
-
   set current-month 1
   set current-year start-year
-  set meetings-conducted 0
-  set projects-proposed 0
-  set projects-rejected 0
-  set projects-agreed-in-administrative-meeting 0
 
+  ; Global parameters
   set trust-increase-in-formal-meetings 1.0005 ; trust will increase by 0.05% between experienced and interested municipalities at each meeting
   set green-energy-openness-increase-in-formal-meetings 1.001 ; the green energy openness increases by 0.1%
   set trust-increase-in-informal-meetings 1.01 ; increase by 1%
   set experience-scaling-factor 20
   set n-of-most-trusted-colleagues 3
   set percentage-delayed 0.5
+
+  ; Reporter variables
+  set meetings-conducted 0
+  set projects-proposed 0
+  set projects-agreed-in-administrative-meeting 0
   set projects-accepted 0
   set projects-rejected 0
   set negotiations-ending-with-agreement 0
   set negotiations-failed-due-to-drop-out 0
   set negotiations-failed-because-of-too-many-rounds 0
   set overall-time-saved 0
+  set total-coalitions 0
 
-
+  ; Other Setup functions
   setup-municipalities
   setup-informal-network
   setup-projects
   setup-municipality-groups
-
   setup-shocks
 
 
@@ -646,8 +651,8 @@ to manage-projects
       set vote-list lput (random-normal [green-energy-openness] of self [political-variety] of self) vote-list
     ]
 
-    ; Check for vote results, and (except in the case the project is a solar urban one) check if there is personnels' capacity in that municipality
-    ifelse mean vote-list >= item 0 [acceptance-threshold] of projects-agreed AND ((count  my-project-connections with [[project-phase] of other-end > 0 AND owner = True]) < ([inhabitants] of self * max-project-capacity / 10000) OR [project-type] of projects-agreed = "solarpark-urban") [
+    ; Check for vote results, and check if there is personnels' capacity in that municipality
+    ifelse mean vote-list >= item 0 [acceptance-threshold] of projects-agreed AND ((count  my-project-connections with [[project-phase] of other-end > 0 AND owner = True]) < ([inhabitants] of self * max-project-capacity / 10000) ) [
 
       ; In case a project is accepted:
       ; print it in the output screen
@@ -783,6 +788,9 @@ to communicate-informally
             create-project-connections-from project-under-discussion [
               set owner False
               set created-during-informal-communication True]
+
+            ; Increase counter for total coalitions by one
+            set total-coalitions total-coalitions + 1
           ]
 
           ; select the link between the friends and the project being discussed
@@ -938,7 +946,7 @@ to conduct-meeting
             ; Set the installed power to the offer that has been discussed
             set installed-power item 1 last offer-list
 
-            change-trust who 0.5
+            change-trust who trust-increase-in-formal-meetings
 
             set projects-accepted projects-accepted + 1
           ]
@@ -1231,7 +1239,7 @@ to change-trust [project-id amount]
     ; Change the trust value
     foreach municipality-trust-connections [
       x -> ask x [
-        set trust trust + amount
+        set trust max (list 0 (min (list (trust * amount) 100)))
 
         let connected-municipalities (list [name] of both-ends)
 
@@ -1376,7 +1384,32 @@ end
 
 ;;;;;;;;;;;;;;;;;;;;;;;; REPORTER FUNCTIONS ;;;;;;;;;;;;;;;;;;;;;;;;
 
+; Procedure that creates a given number of shocks at random times during the simulation time
+to-report random-shocks [number-shocks shock-number shock-enabled]
 
+  ; Calculate the number of ticks
+  let number-simulation-ticks (end-year - start-year) * 12
+
+  let shock-ticks (list)
+
+  ; Generate a list of random shock times
+  repeat number-shocks [
+
+    let shock-time random number-simulation-ticks
+    set shock-time (list ((floor (shock-time / 12)) + start-year) ((shock-time mod 12) + 1))
+    set shock-ticks lput shock-time shock-ticks
+
+  ]
+
+  if shock-enabled [output-print (word "SHOCK: Random times of shock " shock-number " set to " shock-ticks)]
+
+  report shock-ticks
+
+end
+
+
+
+; Outcome Reporters ----------------------------------------------------------------------------------------------------------------------------------
 to-report current-wind-capacity
   report sum [installed-power] of projects with [active AND member? project-type (list "windpark-small" "windpark-medium" "windpark-large")]
 end
@@ -1406,10 +1439,21 @@ to-report current-total-production
 end
 
 
+to-report average-link-strength
+  report sum [trust] of municipality-connections / count municipality-connections
+end
 
-to-report get-desired-range [municipality-id type-of-project owner-of-project]
-  let selected-municipality municipality municipality-id
-  report [inhabitants] of selected-municipality
+
+to-report current-projects-proposed
+  report count project-connections with [owner = True]
+end
+
+to-report current-active-projects
+  report count projects with [active = True]
+end
+
+to-report current-projects-rejected
+  report projects-rejected
 end
 
 to-report negative-externalities
@@ -1420,46 +1464,25 @@ to-report positive-externalities
   report count project-connections with [positively-affected = True]
 end
 
-to-report average-degree-centrality
-  let degree-centrality 0
-  ask municipalities [
-    set degree-centrality sum [trust] of my-municipality-connections
-  ]
-  report degree-centrality / count municipality-connections
+to-report average-green-energy-openness
+  report mean [green-energy-openness] of municipalities
 end
 
-to-report average-link-strenght
-  report [trust] of municipality-connections / count municipality-connections
+to-report average-political-variety
+  report mean [political-variety] of municipalities
 end
 
-; Procedure that creates a given number of shocks at random times during the simulation time
-to-report random-shocks [number-shocks shock-number shock-enabled]
+to-report current-coalitions
 
-  ; Calculate the number of ticks
-  let number-simulation-ticks (end-year - start-year) * 12
-
-  let shock-ticks (list)
-
-  ; Generate a list of random shock times
-  repeat number-shocks [
-
-    let shock-time random number-simulation-ticks
-    set shock-time (list ((floor (shock-time / 12)) + start-year) ((shock-time mod 12) + 1))
-    set shock-ticks lput shock-time shock-ticks
-
-  ]
-
-  if shock-enabled [output-print (word "SHOCK: Random times of shock " shock-number " set to " shock-ticks)]
-
-  report shock-ticks
+  report count project-connections with [created-during-informal-communication and accept-offer = False]
 
 end
 @#$#@#$#@
 GRAPHICS-WINDOW
-13
-150
-559
-697
+26
+26
+572
+573
 -1
 -1
 7.08
@@ -1483,10 +1506,10 @@ ticks
 30.0
 
 BUTTON
-15
-20
-228
-53
+31
+588
+244
+678
 Setup model run
 setup
 NIL
@@ -1500,17 +1523,17 @@ NIL
 1
 
 OUTPUT
-572
-374
-1108
-697
+590
+28
+1009
+698
 13
 
 MONITOR
-15
-101
-72
-146
+481
+590
+571
+635
 Year
 current-year
 17
@@ -1518,10 +1541,10 @@ current-year
 11
 
 MONITOR
-81
-102
-138
-147
+481
+641
+571
+686
 Month
 current-month
 17
@@ -1529,10 +1552,10 @@ current-month
 11
 
 PLOT
-1122
-375
-1336
-520
+1050
+31
+1381
+183
 Political Overview
 Green Energy Openness
 Count
@@ -1547,10 +1570,10 @@ PENS
 "green-energy-openness" 1.0 1 -13840069 true "" "histogram [green-energy-openness] of municipalities"
 
 BUTTON
-16
-58
-227
-91
+252
+590
+463
+677
 Start model run
 go
 T
@@ -1564,13 +1587,13 @@ NIL
 1
 
 PLOT
-1119
-531
-1619
-696
+1051
+192
+1381
+371
 Projects overview
-Tick
-Number Projects
+Time elapsed
+# of Projects
 0.0
 10.0
 0.0
@@ -1579,30 +1602,31 @@ true
 true
 "" ""
 PENS
-"Projects accepted in formal meetings" 1.0 0 -16777216 true "" "plot projects-accepted"
+"Projects accepted" 1.0 0 -16777216 true "" "plot projects-accepted"
 "Active projects" 1.0 0 -14439633 true "" "plot count projects with [active = True]"
 "Projects rejected" 1.0 0 -2674135 true "" "plot projects-rejected"
+"Projects proposed" 1.0 0 -7500403 true "" "plot current-projects-proposed"
 
 SLIDER
-585
-182
-871
-215
+349
+862
+635
+895
 total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-12.0
+13.0
 1
 1
 per year
 HORIZONTAL
 
 SWITCH
-1943
-91
-2235
-124
+1740
+79
+2032
+112
 show-municipal-decisions
 show-municipal-decisions
 1
@@ -1610,10 +1634,10 @@ show-municipal-decisions
 -1000
 
 SLIDER
-938
-220
-1243
-253
+702
+900
+1007
+933
 administrative-network-meetings
 administrative-network-meetings
 0
@@ -1625,10 +1649,10 @@ per year
 HORIZONTAL
 
 SWITCH
-1943
-54
-2234
-87
+1740
+42
+2031
+75
 show-regional-meetings
 show-regional-meetings
 0
@@ -1636,40 +1660,40 @@ show-regional-meetings
 -1000
 
 TEXTBOX
-939
-36
-1250
-64
+703
+716
+1014
+744
 Levers -------------------------------------------
 11
 0.0
 1
 
 TEXTBOX
-1937
-31
-2208
-73
+1734
+20
+2005
+62
 Visuals -----------------------------------
 11
 0.0
 1
 
 TEXTBOX
-1269
-61
-1284
-327
+1033
+741
+1048
+1007
 |\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|
 11
 0.0
 1
 
 SWITCH
-2081
-209
-2235
-242
+1878
+198
+2032
+231
 show-externalities
 show-externalities
 1
@@ -1677,25 +1701,25 @@ show-externalities
 -1000
 
 SLIDER
-936
-61
-1243
-94
+700
+741
+1007
+774
 informal-meetings-frequency
 informal-meetings-frequency
 0
 25
-11.0
+12.0
 1
 1
 per year
 HORIZONTAL
 
 SWITCH
-1943
-130
-2234
-163
+1740
+118
+2031
+151
 show-municipal-network
 show-municipal-network
 0
@@ -1703,10 +1727,10 @@ show-municipal-network
 -1000
 
 SWITCH
-1944
-209
-2076
-242
+1741
+198
+1873
+231
 show-projects
 show-projects
 0
@@ -1714,13 +1738,13 @@ show-projects
 -1000
 
 PLOT
-1627
-377
-1913
-693
-Capacity  implemented [MW]
-NIL
-NIL
+1052
+376
+1373
+692
+Capacity  implemented
+Time elapsed
+MW
 0.0
 10.0
 0.0
@@ -1734,26 +1758,26 @@ PENS
 "Total" 1.0 0 -16777216 true "" "plot current-total-capacity"
 
 SLIDER
-585
-64
-871
-97
+349
+744
+635
+777
 end-year
 end-year
-2030
-2100
-2065.0
-5
+2025
+2050
+2030.0
+1
 1
 NIL
 HORIZONTAL
 
 PLOT
-1352
-375
-1620
-525
-search areas' mean trust
+1394
+32
+1711
+182
+Trust Overview
 Tick
 Mean Trust
 0.0
@@ -1771,10 +1795,10 @@ PENS
 "Mean Trust in Region" 1.0 0 -10899396 true "" "plot regional-trust"
 
 SWITCH
-269
-63
-555
-96
+34
+743
+320
+776
 random-intial-trust
 random-intial-trust
 0
@@ -1782,14 +1806,14 @@ random-intial-trust
 -1000
 
 SLIDER
-584
-103
-872
-136
+348
+783
+636
+816
 green-energy-openness-change
 green-energy-openness-change
--5
-5
+-10
+10
 0.0
 1
 1
@@ -1797,50 +1821,50 @@ green-energy-openness-change
 HORIZONTAL
 
 SLIDER
-585
-142
-870
-175
+349
+822
+634
+855
 political-variety-change
 political-variety-change
 -10
 10
-4.0
+0.0
 1
 1
 %
 HORIZONTAL
 
 TEXTBOX
-259
-28
-574
-56
+24
+708
+339
+736
 Uncertainties -------------------------------------
 11
 0.0
 1
 
 SLIDER
-933
-142
-1243
-175
+697
+822
+1007
+855
 max-project-capacity
 max-project-capacity
 0
 50
-25.0
+24.0
 1
 1
 per 10,000 inhabitants
 HORIZONTAL
 
 SWITCH
-268
-99
-555
-132
+33
+779
+320
+812
 enable-formal-meetings
 enable-formal-meetings
 0
@@ -1848,25 +1872,25 @@ enable-formal-meetings
 -1000
 
 SLIDER
-935
-99
-1243
-132
+699
+779
+1007
+812
 search-area-meetings
 search-area-meetings
 0
 50
-18.0
+20.0
 1
 1
 per year
 HORIZONTAL
 
 SLIDER
-938
-261
-1245
-294
+702
+941
+1009
+974
 rounds-per-meeting
 rounds-per-meeting
 0
@@ -1878,25 +1902,25 @@ NIL
 HORIZONTAL
 
 SLIDER
-584
-221
-872
-254
+348
+901
+636
+934
 agreement-factor
 agreement-factor
 1
 10
-6.0
+9.0
 1
 1
 NIL
 HORIZONTAL
 
 SWITCH
-1943
-169
-2234
-202
+1740
+158
+2031
+191
 show-trust-changes
 show-trust-changes
 1
@@ -1904,75 +1928,65 @@ show-trust-changes
 -1000
 
 TEXTBOX
-938
-194
-1202
-236
+702
+874
+966
+916
 Negotiations Levers ------------------
 11
 0.0
 1
 
 SLIDER
-937
-303
-1243
-336
+701
+983
+1007
+1016
 max-rounds-before-failed
 max-rounds-before-failed
 0
 25
-18.0
+25.0
 1
 1
 NIL
 HORIZONTAL
 
 TEXTBOX
-896
-64
-911
-330
+660
+744
+675
+1010
 |\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|
 11
 0.0
 1
 
 TEXTBOX
-253
-58
-268
-128
-|\n|\n|\n|\n|\n
-11
-0.0
-1
-
-TEXTBOX
-1296
-37
-1564
-79
+1060
+717
+1328
+759
 Shocks -----------------------------------
 11
 0.0
 1
 
 TEXTBOX
-1915
-59
-1930
-325
+1679
+739
+1694
+1005
 |\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|\n|
 11
 0.0
 1
 
 SWITCH
-1297
-70
-1550
-103
+1061
+750
+1314
+783
 Shock-1-Trust-drop
 Shock-1-Trust-drop
 0
@@ -1980,10 +1994,10 @@ Shock-1-Trust-drop
 -1000
 
 SWITCH
-1297
-119
-1550
-152
+1061
+799
+1314
+832
 Shock-2-Meeting-frequency
 Shock-2-Meeting-frequency
 1
@@ -1991,10 +2005,10 @@ Shock-2-Meeting-frequency
 -1000
 
 SWITCH
-1296
-168
-1550
-201
+1060
+848
+1314
+881
 Shock-3-Green-energy-openness
 Shock-3-Green-energy-openness
 1
@@ -2002,10 +2016,10 @@ Shock-3-Green-energy-openness
 -1000
 
 SWITCH
-1298
-219
-1550
-252
+1062
+899
+1314
+932
 Shock-4-Political-variety
 Shock-4-Political-variety
 1
@@ -2013,65 +2027,50 @@ Shock-4-Political-variety
 -1000
 
 CHOOSER
-1569
-63
-1707
-108
+1333
+743
+1471
+788
 S1-Time
 S1-Time
 "Random" "At given times"
 0
 
 CHOOSER
-1569
-114
-1707
-159
+1333
+794
+1471
+839
 S2-Time
 S2-Time
 "Random" "At given times"
 1
 
 CHOOSER
-1569
-165
-1707
-210
+1333
+845
+1471
+890
 S3-Time
 S3-Time
 "Random" "At given times"
 0
 
 CHOOSER
-1569
-214
-1707
-259
+1333
+894
+1471
+939
 S4-Time
 S4-Time
 "Random" "At given times"
 1
-
-SLIDER
-1295
-303
-1708
-336
-random-shock-probability
-random-shock-probability
-0
-100
-22.5
-0.5
-1
-%
-HORIZONTAL
 
 SWITCH
-1944
-250
-2234
-283
+1741
+239
+2031
+272
 show-informal-communication-alignments
 show-informal-communication-alignments
 1
@@ -2079,25 +2078,25 @@ show-informal-communication-alignments
 -1000
 
 SLIDER
-585
-265
-870
-298
+349
+945
+634
+978
 acceptance-threshold-for-medium-solarpark
 acceptance-threshold-for-medium-solarpark
 0
 30
-0.0
+1.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-586
-305
-870
-338
+350
+985
+634
+1018
 acceptance-threshold-for-medium-windpark
 acceptance-threshold-for-medium-windpark
 0
@@ -2109,17 +2108,17 @@ NIL
 HORIZONTAL
 
 PLOT
-1922
+1381
 377
-2264
+1714
 690
-Yearly renewable electricity production [TWh]
-NIL
-NIL
+Yearly renewable electricity production
+Time elapsed
+TWh
 0.0
 10.0
 0.0
-10.0
+1.0
 true
 true
 "" ""
@@ -2129,10 +2128,10 @@ PENS
 "Total" 1.0 0 -16777216 true "" "plot current-total-production"
 
 SLIDER
-1716
-71
-1890
-104
+1480
+751
+1654
+784
 S1-number-shocks
 S1-number-shocks
 0
@@ -2144,10 +2143,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-1716
-120
-1890
-153
+1480
+800
+1654
+833
 S2-number-shocks
 S2-number-shocks
 0
@@ -2159,10 +2158,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-1718
-169
-1892
-202
+1482
+849
+1656
+882
 S3-number-shocks
 S3-number-shocks
 0
@@ -2174,10 +2173,10 @@ NIL
 HORIZONTAL
 
 SLIDER
-1718
-217
-1892
-250
+1482
+897
+1656
+930
 S4-number-shocks
 S4-number-shocks
 0
@@ -2187,6 +2186,26 @@ S4-number-shocks
 1
 NIL
 HORIZONTAL
+
+PLOT
+1393
+193
+1712
+370
+Negotiation Overview
+Time elapsed
+# of Negotiations
+0.0
+10.0
+0.0
+10.0
+true
+true
+"" ""
+PENS
+"With Agreement" 1.0 0 -13840069 true "" "plot negotiations-ending-with-agreement"
+"Dropout" 1.0 0 -2674135 true "" "plot negotiations-failed-due-to-drop-out"
+"Too long" 1.0 0 -955883 true "" "plot negotiations-failed-because-of-too-many-rounds"
 
 @#$#@#$#@
 ## WHAT IS IT?
