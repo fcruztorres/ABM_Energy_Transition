@@ -337,22 +337,35 @@ to setup-shocks
   ; Setting for the times when they should happen. Different times can be specified in a list and are a tuple of numbers, first the year and then the month
   ; For instance, [[2021 5] [2030 9]] will create two shocks in May 2021 and in September 2030
 
-  set shock-1-times [[2025 1] [2030 1]]
+  set shock-1-times [[2025 1] [2030 1] [2035 1]]
   set shock-2-times [[2035 1]]
   set shock-3-times [[2040 1]]
   set shock-4-times [[2045 1]]
+
 
   ; In case random shocks are specified, override the lists with random shocks
   if S1-time = "Random" [set shock-1-times random-shocks S1-number-shocks 1 Shock-1-Trust-drop]
   if S2-time = "Random" [set shock-2-times random-shocks S2-number-shocks 2 Shock-2-Meeting-frequency]
   if S3-time = "Random" [set shock-3-times random-shocks S3-number-shocks 3 Shock-3-Green-energy-openness]
-  if S4-time = "Random" [set shock-1-times random-shocks S4-number-shocks 4 Shock-4-Political-variety]
+  if S4-time = "Random" [set shock-4-times random-shocks S4-number-shocks 4 Shock-4-Political-variety]
 
   ; In case shocks are disabled, delete the list of point in time for correct reporting
   if Shock-1-Trust-drop = False [set shock-1-times (list)]
   if Shock-2-Meeting-frequency = False [set shock-2-times (list)]
   if Shock-3-Green-energy-openness = False [set shock-3-times (list)]
   if Shock-4-Political-variety = False [set shock-4-times (list)]
+
+  if show-shocks [
+    output-print (word "--- \nSHOCK: The shock times are scheduled to the following:")
+    if Shock-1-Trust-drop [output-print (word "Shock 1 - " S1-time ": " shock-1-times)]
+    if Shock-2-Meeting-frequency [output-print (word "Shock 2 - " S2-time ": " shock-2-times)]
+    if Shock-3-Green-energy-openness [output-print (word "Shock 3 - " S3-time ": " shock-3-times)]
+    if Shock-4-Political-variety [output-print (word "Shock 4 - " S4-time ": " shock-4-times)]
+
+    if (Shock-1-Trust-drop = False) and (Shock-2-Meeting-frequency = False) and (Shock-3-Green-energy-openness = False) and (Shock-4-Political-variety = False) [output-print "No shocks enabled for this simulation run"]
+
+      output-print "---"
+    ]
 
 end
 
@@ -922,8 +935,6 @@ to conduct-meeting
           if (latest-municipality != [who] of other-end) and (latest-offer = my-last-offer) and accept-offer = False [
             set drop-out True
 
-            output-print (word "My last offer: " my-last-offer)
-
             ; Print
             if show-regional-meetings [output-print (word [name] of other-end " has dropped out of the negotiations")]
           ]
@@ -1295,7 +1306,7 @@ to shock
         set trust 0.1 * trust ; decrease trust to 10% of the previous value
       ]
 
-      output-print (word "SHOCK: Shock 1 (reduce trust) happened in " current-year " " current-month)
+      if show-shocks [output-print (word "SHOCK: Shock 1 (reduce trust) happened in " current-year " " current-month)]
     ]
   ]
 
@@ -1314,7 +1325,7 @@ to shock
       ; Execute Shock
       set administrative-network-meetings 1 ; Set the administrative network meetings to one
 
-      output-print (word "SHOCK: Shock 2 (Meeting-frequency) happened in " current-year " " current-month)
+      if show-shocks [output-print (word "SHOCK: Shock 2 (Meeting-frequency) happened in " current-year " " current-month)]
     ]
   ]
 
@@ -1335,7 +1346,7 @@ to shock
 
       ]
 
-      output-print (word "SHOCK: Shock 3 (Green energy openness) happened in " current-year " " current-month)
+        if show-shocks [output-print (word "SHOCK: Shock 3 (Green energy openness) happened in " current-year " " current-month)]
     ]
   ]
 
@@ -1356,7 +1367,7 @@ to shock
 
       ]
 
-      output-print (word "SHOCK: Shock 4 (Political variety) happened in " current-year " " current-month)
+          if show-shocks [output-print (word "SHOCK: Shock 4 (Political variety) happened in " current-year " " current-month)]
     ]
   ]
 
@@ -1406,8 +1417,6 @@ to-report random-shocks [number-shocks shock-number shock-enabled]
     set shock-ticks lput shock-time shock-ticks
 
   ]
-
-  if shock-enabled [output-print (word "SHOCK: Random times of shock " shock-number " set to " shock-ticks)]
 
   report shock-ticks
 
@@ -1479,7 +1488,7 @@ to-report average-political-variety
 end
 
 to-report current-coalitions
-  report count project-connections with [created-during-informal-communication and accept-offer = False]
+  report count project-connections with [created-during-informal-communication = True and accept-offer = False]
 end
 
 to-report shock-times
@@ -1624,7 +1633,7 @@ total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-13.0
+24.0
 1
 1
 per year
@@ -1643,14 +1652,14 @@ show-municipal-decisions
 
 SLIDER
 702
-900
-1007
-933
+897
+1013
+930
 administrative-network-meetings
 administrative-network-meetings
 0
 25
-25.0
+1.0
 1
 1
 per year
@@ -1663,7 +1672,7 @@ SWITCH
 75
 show-regional-meetings
 show-regional-meetings
-0
+1
 1
 -1000
 
@@ -1717,7 +1726,7 @@ informal-meetings-frequency
 informal-meetings-frequency
 0
 25
-12.0
+18.0
 1
 1
 per year
@@ -1730,7 +1739,7 @@ SWITCH
 151
 show-municipal-network
 show-municipal-network
-0
+1
 1
 -1000
 
@@ -1741,7 +1750,7 @@ SWITCH
 231
 show-projects
 show-projects
-0
+1
 1
 -1000
 
@@ -1774,7 +1783,7 @@ end-year
 end-year
 2025
 2050
-2030.0
+2033.0
 1
 1
 NIL
@@ -1822,7 +1831,7 @@ green-energy-openness-change
 green-energy-openness-change
 -10
 10
-0.0
+10.0
 1
 1
 %
@@ -1837,7 +1846,7 @@ political-variety-change
 political-variety-change
 -10
 10
-0.0
+-6.0
 1
 1
 %
@@ -1862,7 +1871,7 @@ max-project-capacity
 max-project-capacity
 0
 50
-24.0
+42.0
 1
 1
 per 10,000 inhabitants
@@ -1875,7 +1884,7 @@ SWITCH
 812
 enable-formal-meetings
 enable-formal-meetings
-0
+1
 1
 -1000
 
@@ -1888,7 +1897,7 @@ search-area-meetings
 search-area-meetings
 0
 50
-20.0
+25.0
 1
 1
 per year
@@ -1954,7 +1963,7 @@ max-rounds-before-failed
 max-rounds-before-failed
 0
 25
-25.0
+14.0
 1
 1
 NIL
@@ -2008,7 +2017,7 @@ SWITCH
 832
 Shock-2-Meeting-frequency
 Shock-2-Meeting-frequency
-1
+0
 1
 -1000
 
@@ -2052,7 +2061,7 @@ CHOOSER
 S2-Time
 S2-Time
 "Random" "At given times"
-1
+0
 
 CHOOSER
 1333
@@ -2062,7 +2071,7 @@ CHOOSER
 S3-Time
 S3-Time
 "Random" "At given times"
-0
+1
 
 CHOOSER
 1333
@@ -2072,7 +2081,7 @@ CHOOSER
 S4-Time
 S4-Time
 "Random" "At given times"
-1
+0
 
 SWITCH
 1741
@@ -2094,7 +2103,7 @@ acceptance-threshold-for-medium-solarpark
 acceptance-threshold-for-medium-solarpark
 0
 30
-1.0
+0.0
 1
 1
 NIL
@@ -2109,7 +2118,7 @@ acceptance-threshold-for-medium-windpark
 acceptance-threshold-for-medium-windpark
 0
 50
-40.0
+23.0
 1
 1
 NIL
@@ -2144,7 +2153,7 @@ S1-number-shocks
 S1-number-shocks
 0
 10
-7.0
+10.0
 1
 1
 NIL
@@ -2159,7 +2168,7 @@ S2-number-shocks
 S2-number-shocks
 0
 10
-1.0
+9.0
 1
 1
 NIL
@@ -2189,7 +2198,7 @@ S4-number-shocks
 S4-number-shocks
 0
 10
-1.0
+2.0
 1
 1
 NIL
@@ -2214,6 +2223,17 @@ PENS
 "With Agreement" 1.0 0 -13840069 true "" "plot negotiations-ending-with-agreement"
 "Dropout" 1.0 0 -2674135 true "" "plot negotiations-failed-due-to-drop-out"
 "Too long" 1.0 0 -955883 true "" "plot negotiations-failed-because-of-too-many-rounds"
+
+SWITCH
+1742
+278
+2033
+311
+show-shocks
+show-shocks
+0
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -2767,9 +2787,11 @@ NetLogo 6.2.0
 @#$#@#$#@
 @#$#@#$#@
 <experiments>
-  <experiment name="No Shocks" repetitions="25" runMetricsEveryStep="true">
+  <experiment name="No Shocks" repetitions="1" runMetricsEveryStep="true">
     <setup>setup</setup>
     <go>go</go>
+    <metric>current-year</metric>
+    <metric>current-month</metric>
     <metric>current-wind-capacity</metric>
     <metric>current-wind-production</metric>
     <metric>current-solar-capacity</metric>
@@ -2791,6 +2813,7 @@ NetLogo 6.2.0
     <metric>total-coalitions</metric>
     <metric>current-coalitions</metric>
     <metric>shock-times</metric>
+    <steppedValueSet variable="random-seed" first="1" step="1" last="50"/>
     <enumeratedValueSet variable="Shock-1-Trust-drop">
       <value value="false"/>
     </enumeratedValueSet>
