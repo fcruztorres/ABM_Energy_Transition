@@ -27,7 +27,7 @@ globals [
   A20-area-trust
   regional-trust
 
-  trust-increase-in-formal-meetings ; percentage expressed in decimals (e.g., 1.05 being 5% increase, 1.001 being 0.1% increase)
+  trust-change-in-formal-meetings ; percentage expressed in decimals (e.g., 1.05 being 5% increase, 1.001 being 0.1% increase)
   green-energy-openness-increase-in-formal-meetings ; percentage expressed in decimals (e.g., 1.05 being 5% increase, 1.001 being 0.1% increase)
   trust-increase-in-informal-meetings ; percentage expressed in decimals
   experience-scaling-factor ; integer
@@ -122,7 +122,7 @@ to setup
   set current-year start-year
 
   ; Global parameters
-  set trust-increase-in-formal-meetings 1.0005 ; trust will increase by 0.05% between experienced and interested municipalities at each meeting
+  set trust-change-in-formal-meetings 1.0005 ; trust will increase by 0.05% between experienced and interested municipalities at each meeting
   set green-energy-openness-increase-in-formal-meetings 1.001 ; the green energy openness increases by 0.1%
   set trust-increase-in-informal-meetings 1.01 ; increase by 1%
   set experience-scaling-factor 20
@@ -965,7 +965,7 @@ to conduct-meeting
             ; Set the installed power to the offer that has been discussed
             set installed-power item 1 last offer-list
 
-            change-trust who 0.5
+            change-trust who 0.25 ; Trust increases by 25% in case the project is about to be implemented
 
             set projects-accepted projects-accepted + 1
           ]
@@ -1046,7 +1046,7 @@ to conduct-meeting
           ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
 
           ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
-          ask my-municipality-connections with [member? other-end urban-experienced-municipalities] [set trust min (list 100 (trust * trust-increase-in-formal-meetings))] ; the trust increases by 0.05%
+          ask my-municipality-connections with [member? other-end urban-experienced-municipalities] [set trust min (list 100 (trust * trust-change-in-formal-meetings))] ; the trust increases by 0.05%
 
           ; print out that information exchange happened
           if show-regional-meetings [
@@ -1062,7 +1062,7 @@ to conduct-meeting
           ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
 
           ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
-          ask my-municipality-connections with [member? other-end solar-experienced-municipalities] [set trust min (list 100 (trust * trust-increase-in-formal-meetings))] ; the trust increases by 0.05%
+          ask my-municipality-connections with [member? other-end solar-experienced-municipalities] [set trust min (list 100 (trust * trust-change-in-formal-meetings))] ; the trust increases by 0.05%
         ]
 
         ; print out that information exchange happened
@@ -1077,7 +1077,7 @@ to conduct-meeting
           ask my-project-connections [set implementation-time-left implementation-time-left - search-area-trust / 100]
 
           ; at each meeting, the exchange of information increases the trust between experienced and municipalities interested in the kind of project that experienced municipalities have explained
-          ask my-municipality-connections with [member? other-end wind-experienced-municipalities] [set trust min (list 100 (trust * trust-increase-in-formal-meetings))] ; the trust increases by 0.05%
+          ask my-municipality-connections with [member? other-end wind-experienced-municipalities] [set trust min (list 100 (trust * trust-change-in-formal-meetings))] ; the trust increases by 0.05%
         ]
 
         ; print out that information exchange happened
@@ -1285,7 +1285,7 @@ to fail-negotiation [project-id]
     set hidden? True
   ]
 
-  change-trust project-id -0.05
+  change-trust project-id -0.01 ; Trust decreases by 1% whenever a negotiation failed
 
 end
 
