@@ -954,6 +954,8 @@ to conduct-meeting
             set negotiation-failed True
             set projects-rejected projects-rejected + 1
 
+
+
           ][
             if show-regional-meetings [output-print (word "An agreement has been reached on " project-type " in " [[name] of other-end] of my-project-connections with [owner = True])]
 
@@ -963,7 +965,7 @@ to conduct-meeting
             ; Set the installed power to the offer that has been discussed
             set installed-power item 1 last offer-list
 
-            change-trust who trust-increase-in-formal-meetings
+            change-trust who 0.5
 
             set projects-accepted projects-accepted + 1
           ]
@@ -1256,7 +1258,7 @@ to change-trust [project-id amount]
     ; Change the trust value
     foreach municipality-trust-connections [
       x -> ask x [
-        set trust max (list 0 (min (list (trust * amount) 100)))
+        set trust max (list 0 (min (list (trust * (1 + amount)) 100)))
 
         let connected-municipalities (list [name] of both-ends)
 
@@ -1283,7 +1285,7 @@ to fail-negotiation [project-id]
     set hidden? True
   ]
 
-  change-trust project-id -0.5
+  change-trust project-id -0.05
 
 end
 
@@ -1633,7 +1635,7 @@ total-project-proposal-frequency
 total-project-proposal-frequency
 1
 25
-24.0
+11.0
 1
 1
 per year
@@ -1659,7 +1661,7 @@ administrative-network-meetings
 administrative-network-meetings
 0
 25
-1.0
+6.0
 1
 1
 per year
@@ -1726,7 +1728,7 @@ informal-meetings-frequency
 informal-meetings-frequency
 0
 25
-18.0
+13.0
 1
 1
 per year
@@ -1783,7 +1785,7 @@ end-year
 end-year
 2025
 2050
-2033.0
+2030.0
 1
 1
 NIL
@@ -1831,7 +1833,7 @@ green-energy-openness-change
 green-energy-openness-change
 -10
 10
-10.0
+-7.0
 1
 1
 %
@@ -1846,7 +1848,7 @@ political-variety-change
 political-variety-change
 -10
 10
--6.0
+-3.0
 1
 1
 %
@@ -1871,7 +1873,7 @@ max-project-capacity
 max-project-capacity
 0
 50
-42.0
+46.0
 1
 1
 per 10,000 inhabitants
@@ -1884,7 +1886,7 @@ SWITCH
 812
 enable-formal-meetings
 enable-formal-meetings
-1
+0
 1
 -1000
 
@@ -1897,7 +1899,7 @@ search-area-meetings
 search-area-meetings
 0
 50
-25.0
+34.0
 1
 1
 per year
@@ -1912,7 +1914,7 @@ rounds-per-meeting
 rounds-per-meeting
 0
 15
-4.0
+1.0
 1
 1
 NIL
@@ -1927,7 +1929,7 @@ agreement-factor
 agreement-factor
 1
 10
-9.0
+4.0
 1
 1
 NIL
@@ -2006,7 +2008,7 @@ SWITCH
 783
 Shock-1-Trust-drop
 Shock-1-Trust-drop
-0
+1
 1
 -1000
 
@@ -2017,7 +2019,7 @@ SWITCH
 832
 Shock-2-Meeting-frequency
 Shock-2-Meeting-frequency
-0
+1
 1
 -1000
 
@@ -2071,7 +2073,7 @@ CHOOSER
 S3-Time
 S3-Time
 "Random" "At given times"
-1
+0
 
 CHOOSER
 1333
@@ -2103,7 +2105,7 @@ acceptance-threshold-for-medium-solarpark
 acceptance-threshold-for-medium-solarpark
 0
 30
-0.0
+1.0
 1
 1
 NIL
@@ -2118,7 +2120,7 @@ acceptance-threshold-for-medium-windpark
 acceptance-threshold-for-medium-windpark
 0
 50
-23.0
+12.0
 1
 1
 NIL
@@ -2183,7 +2185,7 @@ S3-number-shocks
 S3-number-shocks
 0
 10
-3.0
+4.0
 1
 1
 NIL
