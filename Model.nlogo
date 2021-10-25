@@ -41,6 +41,16 @@ globals [
   overall-time-saved ; KPI, integer
   total-coalitions ; KPI, integer
 
+  ; installed power of archetypical projects as specified in the projects.csv file
+  capacity-small-solarpark
+  capacity-medium-solarpark
+  capacity-large-solarpark
+  capacity-small-windpark
+  capacity-medium-windpark
+  capacity-large-windpark
+
+
+
 
   ; Shocks
   shock-1-times
@@ -278,21 +288,27 @@ to setup-projects
 
         if project-type = "solarpark-small" [
           set acceptance-threshold acceptance-threshold-for-medium-solarpark - 5
+          set capacity-small-solarpark item 1 data
         ]
         if project-type = "solarpark-medium" [
           set acceptance-threshold acceptance-threshold-for-medium-solarpark
+          set capacity-medium-solarpark item 1 data
         ]
         if project-type = "solarpark-large" [
           set acceptance-threshold acceptance-threshold-for-medium-solarpark + 5
+          set capacity-large-solarpark item 1 data
         ]
         if project-type = "windpark-small" [
           set acceptance-threshold acceptance-threshold-for-medium-windpark - 5
+          set capacity-small-windpark item 1 data
         ]
         if project-type = "windpark-medium" [
           set acceptance-threshold acceptance-threshold-for-medium-windpark
+          set capacity-medium-windpark item 1 data
         ]
         if project-type = "windpark-large" [
           set acceptance-threshold acceptance-threshold-for-medium-windpark + 5
+          set capacity-large-windpark item 1 data
         ]
 
 
@@ -305,6 +321,7 @@ to setup-projects
         set size 3
         set hidden? True
       ]
+
 
     ];end past header
 
@@ -671,6 +688,8 @@ to manage-projects
     ]
 
     ; Check for vote results, and check if there is personnels' capacity in that municipality
+    ; update the acceptance thresholds of each agreed project, based on their new capacity resulting from the negotiation
+    update-acceptance-threshold projects-agreed
     ifelse mean vote-list >= item 0 [acceptance-threshold] of projects-agreed AND ((count  my-project-connections with [[project-phase] of other-end > 0 AND owner = True]) < ([inhabitants] of self * max-project-capacity / 10000) ) [
 
       ; In case a project is accepted:
@@ -729,6 +748,45 @@ to manage-projects
 
 end
 
+to update-acceptance-threshold [some-projects]
+  ask some-projects [
+    ;print self
+    ;print (word "project size is" installed-power " and its old acceptance thresh. is: " acceptance-threshold)
+    ; if the project is a solarpark
+    ifelse project-type = "solarpark-small" OR project-type = "solarpark-medium" OR project-type = "solarpark-large"
+    [
+      (
+        ; and its newly negotiated installed power is closest to small solarparks' ones
+        ifelse installed-power <= mean (list capacity-small-solarpark capacity-medium-solarpark)
+        ; set its acceptance threshold as if it were a small solarpark
+        [set acceptance-threshold acceptance-threshold-for-medium-solarpark - 5]
+        ; otherwise, if its capacity is closest to medium solarparks' ones
+        installed-power <= mean (list capacity-medium-solarpark capacity-large-solarpark)
+        ; set its acceptance threshold as if it were a medium solarpark
+        [set acceptance-threshold acceptance-threshold-for-medium-solarpark]
+        installed-power > mean (list capacity-medium-solarpark capacity-large-solarpark)
+        [set acceptance-threshold acceptance-threshold-for-medium-solarpark + 5]
+      )
+    ][
+    ; if it is a windpark
+      (
+        ifelse installed-power <= mean (list capacity-small-windpark capacity-medium-windpark)
+        ; set its acceptance threshold as if it were a small windpark
+        [set acceptance-threshold acceptance-threshold-for-medium-windpark - 5]
+        ; otherwise, if its capacity is closest to medium windparks' ones
+        installed-power <= mean (list capacity-medium-windpark capacity-large-windpark)
+        ; set its acceptance threshold as if it were a medium windpark
+        [set acceptance-threshold acceptance-threshold-for-medium-windpark]
+        ; otherwise, if its capacity is closest to the large windparks' one
+        installed-power > mean (list capacity-medium-windpark capacity-large-windpark)
+        ; set its acceptance threshold as if it were a large windpark
+        [set acceptance-threshold acceptance-threshold-for-medium-windpark + 5]
+      )
+    ]
+    ;print (word "its new acceptance thresh. is: " acceptance-threshold)
+  ]
+
+end
 
 
 to communicate-informally
@@ -1655,7 +1713,7 @@ SWITCH
 112
 show-municipal-decisions
 show-municipal-decisions
-1
+0
 1
 -1000
 
@@ -1939,7 +1997,7 @@ agreement-factor
 4.0
 1
 1
-NIL
+00% of concession steps' size
 HORIZONTAL
 
 SWITCH
@@ -1957,7 +2015,7 @@ TEXTBOX
 702
 874
 966
-916
+892
 Negotiations Levers ------------------
 11
 0.0
