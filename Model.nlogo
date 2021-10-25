@@ -1129,6 +1129,10 @@ to-report get-stance [project-owner? a-project my-municipality]
   ; Determine the concession step and the range
   if member? "wind" [project-type] of a-project [
 
+    ; Inhabitants influence the concession stepsize in a linear way
+    ; Linear interpolation based on the smallest and biggest municipality
+    ; Assuption: Larger municipalities have more (soft) power to push through their interest and are thus willing to make less concessions
+    ; Linear function returns values between 1 (smallest municipality) and 2 (largest municipality)
     let concession-factor (0.000001642036 * inh + 0.9770115)
     set concession-factor round concession-factor
     set concession-step (10 / concession-factor) ; 5 or 10MW, which equals to one or two windturbines
@@ -1146,8 +1150,11 @@ to-report get-stance [project-owner? a-project my-municipality]
   ; In case the project is solar
   if member? "solar" [project-type] of a-project [
 
-    ; original maximum concession step is 150KW (50 percentile of  solar projects implemented in 2019 in Zuid Holland)
-    set concession-step 0.15 ; 90KW negotiation size
+    ; original maximum concession step is 150KW (50 percentile of  solar projects implemented in 2019 in Zuid Holland)  --- CHANGED TO LINE BELOW
+    ;set concession-step 0.15 ; 90KW negotiation size   ---- CHANGED TO LINE BELOW
+
+    ; original maximum concession step is 10% of the proposed plant's original installed power
+    set concession-step [installed-power] of a-project * 0.10 ; MW
 
     ; Inhabitants influence the concession stepsize in a linear way
     ; Linear interpolation based on the smallest and biggest municipality
@@ -1155,8 +1162,8 @@ to-report get-stance [project-owner? a-project my-municipality]
     ; Linear function returns values between 1 (smallest municipality) and 2 (largest municipality)
     let concession-factor (0.000001642036 * inh + 0.9770115)
 
-    ; High and low green energy openness concession influece is modelled with a parabola
-    ; A very low and a very high green energy openness will result in less concessions due to strong believes in a certain direction.
+    ; High and low green energy openness concession influence is modelled with a parabola
+    ; A very low and a very high green energy openness will result in less concessions due to strong beliefs in a certain direction.
     ; Function is a parabola that returns 2 in case the green energy openness is 0 or 100; and 1 in case the green energy openness is 50
     set concession-factor concession-factor * (2 - 0.04 * geo + 0.0004 * geo)
 
